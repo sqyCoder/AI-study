@@ -1,0 +1,32 @@
+/* ============ 浅色主题（经典 2048 配色，spec §4.4） ============ */
+
+.root-pane {
+    -fx-background-color: #faf8ef;
+}
+
+/* 标题 */
+.app-title {
+    -fx-font-size: 48px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #776e65;
+}
+
+/* 分数条（M6 拆分为分数/最佳两栏） */
+.score-bar {
+    -fx-background-color: #bbada0;
+    -fx-text-fill: #f9f6f2;
+    -fx-font-weight: bold;
+    -fx-font-size: 16px;
+    -fx-padding: 8 14 8 14;
+    -fx-background-radius: 6;
+}
+
+/* 棋盘容器与底板 */
+.board-area {
+    -fx-alignment: center;
+}
+
+.board {
+    -fx-background-color: #bbada0;
+    -fx-background-radius: 6;
+}

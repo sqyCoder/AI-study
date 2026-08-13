@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- 2048 主界面（spec §4.3.1；M1 先建立骨架，后续里程碑逐步补齐标题栏/设置栏/方向键盘区/遮罩层） -->
+<BorderPane id="root" styleClass="root-pane"
+            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.ui.GameController">
+    <padding>
+        <Insets top="12" right="12" bottom="12" left="12"/>
+    </padding>
+    <top>
+        <VBox spacing="10">
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <Label text="2048" styleClass="app-title"/>
+                <Label fx:id="scoreBarLabel" styleClass="score-bar" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+            </HBox>
+        </VBox>
+    </top>
+    <center>
+        <StackPane fx:id="boardArea" styleClass="board-area" alignment="CENTER">
+            <StackPane fx:id="boardPane" styleClass="board"/>
+        </StackPane>
+    </center>
+</BorderPane>
