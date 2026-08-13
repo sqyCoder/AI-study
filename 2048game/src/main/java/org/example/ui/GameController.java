@@ -71,6 +71,8 @@ public class GameController implements Initializable {
     @FXML
     private StackPane root;
     @FXML
+    private StackPane bgLayer;
+    @FXML
     private StackPane boardArea;
     @FXML
     private GridPane boardGrid;
@@ -162,6 +164,7 @@ public class GameController implements Initializable {
     private I18n i18n;
     private ThemeManager theme;
     private SoundPlayer sound;
+    private GlowBackground glow;
     private Stage stage;
     /** 动画进行中：屏蔽新输入，保证逻辑与画面一致（spec NFR-3，防快速连按错乱）。 */
     private boolean animationLock;
@@ -199,6 +202,10 @@ public class GameController implements Initializable {
         sizeBox.setButtonCell(sizeCell());
         sizeBox.setValue(engine.getSize());
 
+        // 动态光晕背景（spec2 §4.2）：StackPane 自动拉伸填满 bgLayer，随主题联动
+        glow = new GlowBackground(theme.getCurrent());
+        bgLayer.getChildren().add(glow);
+
         // 静态文案绑定（语言切换自动刷新）
         i18n.bind(scoreCaptionLabel, "score");
         i18n.bind(bestCaptionLabel, "best");
@@ -233,6 +240,7 @@ public class GameController implements Initializable {
         });
         themeButton.setOnAction(e -> {
             theme.toggle(stage.getScene());
+            glow.applyTheme(theme.getCurrent()); // 光晕随主题联动（spec2 §4.2）
             refreshStateTexts();
             sound.playClick();
             root.requestFocus();

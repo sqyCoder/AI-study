@@ -20,7 +20,7 @@
 <StackPane fx:id="root" styleClass="root-pane"
            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="org.example.ui.GameController">
-    <Pane fx:id="bgLayer"/>
+    <StackPane fx:id="bgLayer"/>
     <BorderPane fx:id="content">
         <padding>
             <Insets top="16" right="16" bottom="16" left="16"/>
