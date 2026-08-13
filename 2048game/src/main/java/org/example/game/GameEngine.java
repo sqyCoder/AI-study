@@ -162,7 +162,7 @@ public class GameEngine {
     /**
      * 撤销一步（spec §4.1.6）：
      * 栈空返回 null；成功则恢复棋盘与分数，清除 gameOver/won 标记（复活），
-     * continueAfterWin 复位；步数不回退。
+     * continueAfterWin 复位；步数不回退，且撤销操作本身使步数 +1（见 §4.7）。
      */
     public UndoResult undo() {
         if (!undo.canUndo()) {
@@ -172,6 +172,7 @@ public class GameEngine {
         boolean revived = gameOver || won;
         grid = entry.grid();
         stats.setScore(entry.score());
+        stats.incrementSteps(); // §4.7：撤销视为一次操作，步数 +1
         gameOver = false;
         won = false;
         continueAfterWin = false;

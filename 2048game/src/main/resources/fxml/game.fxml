@@ -73,6 +73,8 @@
                 </StackPane>
                 <!-- 三态遮罩：GameOverBox / WinBox / StatsBox 轮换 -->
                 <StackPane fx:id="overlay" styleClass="overlay" visible="false">
+                    <!-- 胜利彩带容器：独立 Pane（spec2 §4.4），垫在最底、不拦截鼠标 -->
+                    <Pane fx:id="confettiLayer" mouseTransparent="true"/>
                     <!-- 失败遮罩：再来一局 -->
                     <VBox fx:id="gameOverBox" styleClass="panel-box" spacing="12" alignment="CENTER" visible="false">
                         <Label fx:id="gameOverTitleLabel" styleClass="panel-title"/>

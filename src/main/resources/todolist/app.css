@@ -1,0 +1,261 @@
+.root {
+    -fx-background-color: #F2F4F9;
+    -fx-font-family: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+}
+
+.app-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1E293B;
+}
+
+.app-date {
+    -fx-font-size: 13px;
+    -fx-text-fill: #94A3B8;
+}
+
+.task-input {
+    -fx-background-color: white;
+    -fx-background-radius: 10px;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 10px;
+    -fx-padding: 10px 14px;
+    -fx-font-size: 14px;
+    -fx-prompt-text-fill: #B6C0D0;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.05), 8, 0, 0, 2);
+}
+
+.task-input:focused {
+    -fx-border-color: #6366F1;
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.18), 10, 0, 0, 2);
+}
+
+.add-btn {
+    -fx-background-color: #6366F1;
+    -fx-background-radius: 10px;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 10px 22px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 10, 0, 0, 3);
+}
+
+.add-btn:hover {
+    -fx-background-color: #5558E6;
+}
+
+.add-btn:pressed {
+    -fx-background-color: #4F52D9;
+}
+
+.cat-combo {
+    -fx-background-color: white;
+    -fx-background-radius: 10px;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 10px;
+    -fx-font-size: 12px;
+    -fx-padding: 1px 0 1px 12px;
+    -fx-cursor: hand;
+}
+
+.cat-combo .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #475569;
+}
+
+.cat-combo .arrow {
+    -fx-background-color: #94A3B8;
+}
+
+.cat-combo .arrow-button {
+    -fx-background-color: transparent;
+}
+
+.cat-combo .combo-box-popup .list-view {
+    -fx-background-color: white;
+    -fx-background-radius: 10px;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.10), 14, 0, 0, 4);
+}
+
+.cat-combo .combo-box-popup .list-cell {
+    -fx-padding: 8px 12px;
+}
+
+.cat-combo .combo-box-popup .list-cell:hover {
+    -fx-background-color: #EEF0FF;
+}
+
+.cat-combo .combo-box-popup .list-cell:selected {
+    -fx-background-color: #EEF0FF;
+    -fx-text-fill: #6366F1;
+    -fx-font-weight: bold;
+}
+
+.body-scroll {
+    -fx-background-color: transparent;
+}
+
+.body-scroll .viewport {
+    -fx-background-color: transparent;
+}
+
+.body-scroll .scroll-bar:vertical {
+    -fx-pref-width: 8px;
+    -fx-background-color: transparent;
+}
+
+.body-scroll .scroll-bar:vertical .track {
+    -fx-background-color: transparent;
+}
+
+.body-scroll .scroll-bar:vertical .thumb {
+    -fx-background-color: #CDD4E0;
+    -fx-background-radius: 4px;
+}
+
+.body-scroll .scroll-bar:vertical .increment-button,
+.body-scroll .scroll-bar:vertical .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.body-scroll .scroll-bar:vertical .increment-arrow,
+.body-scroll .scroll-bar:vertical .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.body-scroll .scroll-bar:horizontal {
+    -fx-pref-height: 0;
+}
+
+.section-name {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #334155;
+}
+
+.empty-hint {
+    -fx-font-size: 13px;
+    -fx-text-fill: #A5ADBB;
+    -fx-padding: 4px 2px;
+}
+
+.edit-field {
+    -fx-background-color: white;
+    -fx-background-radius: 6px;
+    -fx-border-color: #6366F1;
+    -fx-border-radius: 6px;
+    -fx-padding: 3px 8px;
+    -fx-font-size: 14px;
+    -fx-prompt-text-fill: #B6C0D0;
+}
+
+.count-pill {
+    -fx-background-color: #E4E8F2;
+    -fx-background-radius: 999px;
+    -fx-font-size: 11px;
+    -fx-text-fill: #64748B;
+    -fx-padding: 2px 9px;
+}
+
+.task-card {
+    -fx-background-color: white;
+    -fx-background-radius: 12px;
+    -fx-padding: 11px 14px;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.05), 8, 0, 0, 2);
+}
+
+.task-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.10), 12, 0, 0, 3);
+}
+
+.task-check .box {
+    -fx-background-color: white;
+    -fx-border-color: #CBD5E1;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-min-width: 18px;
+    -fx-min-height: 18px;
+    -fx-pref-width: 18px;
+    -fx-pref-height: 18px;
+}
+
+.task-check:selected .box {
+    -fx-background-color: #6366F1;
+    -fx-border-color: #6366F1;
+    -fx-mark-color: white;
+}
+
+.task-text {
+    -fx-font-size: 14px;
+    -fx-text-fill: #1E293B;
+    -fx-cursor: text;
+}
+
+.task-text.done {
+    -fx-strikethrough: true;
+    -fx-text-fill: #A5ADBB;
+}
+
+.del-btn {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-text-fill: #B6C0D0;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 2px 10px;
+    -fx-min-width: 34px;
+    -fx-min-height: 30px;
+    -fx-cursor: hand;
+}
+
+.del-btn:hover {
+    -fx-background-color: #FEE2E2;
+    -fx-text-fill: #EF4444;
+}
+
+.progress-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #94A3B8;
+}
+
+.progress-bar {
+    -fx-background-color: transparent;
+    -fx-pref-height: 6px;
+}
+
+.progress-bar > .track {
+    -fx-background-color: #E2E8F0;
+    -fx-background-radius: 999px;
+}
+
+.progress-bar > .bar {
+    -fx-background-color: #6366F1;
+    -fx-background-radius: 999px;
+    -fx-background-insets: 0;
+}
+
+.ghost-btn {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-text-fill: #94A3B8;
+    -fx-font-size: 12px;
+    -fx-padding: 4px 10px;
+    -fx-cursor: hand;
+}
+
+.ghost-btn:hover {
+    -fx-background-color: #E4E7F0;
+    -fx-text-fill: #EF4444;
+}
+
+.tooltip {
+    -fx-background-color: #1E293B;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-background-radius: 6px;
+}

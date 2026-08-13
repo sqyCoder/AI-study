@@ -18,6 +18,7 @@ import org.example.game.ScoreStore;
 import org.example.game.Tile;
 import org.example.game.TileMove;
 import org.example.game.TileSpawn;
+import org.example.ui.effect.EffectManager;
 
 import javafx.animation.Animation;
 import javafx.animation.AnimationTimer;
@@ -61,12 +62,12 @@ public class GameController implements Initializable {
     /** Preferences 根节点（与 ScoreStore 共用）。 */
     private static final String PREFS_NODE = "2048game";
 
-    /** 滑动动画时长（ms，spec §4.3.4）。 */
-    private static final long MOVE_ANIM_MS = 120;
+    /** 滑动动画时长（ms，spec §4.3.4 + spec2 §4.4 微调）。 */
+    private static final long MOVE_ANIM_MS = 140;
     /** 合并弹出动画时长（ms）。 */
-    private static final long MERGE_ANIM_MS = 100;
+    private static final long MERGE_ANIM_MS = 120;
     /** 生成块动画时长（ms）。 */
-    private static final long SPAWN_ANIM_MS = 160;
+    private static final long SPAWN_ANIM_MS = 180;
 
     @FXML
     private StackPane root;
@@ -78,6 +79,8 @@ public class GameController implements Initializable {
     private GridPane boardGrid;
     @FXML
     private Pane tileLayer;
+    @FXML
+    private Pane confettiLayer;
     @FXML
     private StackPane overlay;
 
@@ -401,6 +404,9 @@ public class GameController implements Initializable {
         }
 
         // 方块层：非零块按引擎局面绝对定位
+        for (Node node : tileLayer.getChildren()) {
+            EffectManager.stopGlow((StackPane) node); // 全量重建前清掉呼吸光晕
+        }
         tileLayer.getChildren().clear();
         Tile[][] grid = engine.getGrid();
         for (int r = 0; r < n; r++) {
@@ -543,7 +549,7 @@ public class GameController implements Initializable {
     // ==================== 动画编排（spec §4.3.4） ====================
 
     /**
-     * 动画驱动重绘：依据 MoveResult.moves 批量播放滑移（120ms），
+     * 动画驱动重绘：依据 MoveResult.moves 批量播放滑移（140ms），
      * 结束后重建合并块（缩放弹出）、生成块淡入，最后与引擎做一致性校正。
      */
     private void animateMove(MoveResult result) {
@@ -597,6 +603,11 @@ public class GameController implements Initializable {
             merged.setLayoutX(BoardLayout.cellX(rc[1], cell));
             merged.setLayoutY(BoardLayout.cellY(rc[0], cell));
             tileLayer.getChildren().add(merged);
+            // 合并爆点 + 飘字（spec2 §4.4）：爆点粒子与 "+N" 飘字并行于弹出动画
+            double cx = merged.getLayoutX() + cell / 2;
+            double cy = merged.getLayoutY() + cell / 2;
+            EffectManager.mergeBurst(tileLayer, cx, cy, EffectManager.tileColor(merged));
+            EffectManager.scorePopup(tileLayer, cx - 14, cy - cell * 0.45, "+" + e.getValue());
             Timeline timeline = new Timeline(
                     new KeyFrame(Duration.ZERO,
                             new KeyValue(merged.scaleXProperty(), 0.5),
@@ -621,6 +632,7 @@ public class GameController implements Initializable {
             spawn.setScaleX(0.5);
             spawn.setScaleY(0.5);
             tileLayer.getChildren().add(spawn);
+            EffectManager.spawnGlow(spawn); // 生成块微光脉冲（spec2 §4.4）
             FadeTransition fade = new FadeTransition(Duration.millis(SPAWN_ANIM_MS), spawn);
             fade.setFromValue(0);
             fade.setToValue(1);
@@ -650,6 +662,7 @@ public class GameController implements Initializable {
             sound.playWin();
             winScoreLabel.setText(i18n.t("score") + ": " + engine.getScore());
             showPanel(winBox);
+            EffectManager.confetti(confettiLayer, overlay.getWidth(), overlay.getHeight()); // 胜利彩带
         } else if (result.gameOver()) {
             stopTimer();
             scoreStore.reportGameOver(engine.getScore(), engine.getSize());
@@ -669,8 +682,12 @@ public class GameController implements Initializable {
         // 移除与引擎不符的节点（引擎为空或坐标失效）
         tileLayer.getChildren().removeIf(node -> {
             int[] rc = (int[]) node.getUserData();
-            return rc == null || rc[0] < 0 || rc[0] >= n || rc[1] < 0 || rc[1] >= n
+            boolean stale = rc == null || rc[0] < 0 || rc[0] >= n || rc[1] < 0 || rc[1] >= n
                     || grid[rc[0]][rc[1]].isEmpty();
+            if (stale) {
+                EffectManager.stopGlow((StackPane) node); // 停止呼吸光晕，防节点泄漏
+            }
+            return stale;
         });
 
         // 校正位置 / 值 / 补齐缺失
@@ -733,7 +750,11 @@ public class GameController implements Initializable {
     private void removeTilesAt(int r, int c) {
         tileLayer.getChildren().removeIf(node -> {
             int[] rc = (int[]) node.getUserData();
-            return rc != null && rc[0] == r && rc[1] == c;
+            boolean hit = rc != null && rc[0] == r && rc[1] == c;
+            if (hit) {
+                EffectManager.stopGlow((StackPane) node);
+            }
+            return hit;
         });
     }
 
@@ -761,8 +782,10 @@ public class GameController implements Initializable {
             }
             if (isMax) {
                 node.getStyleClass().add("tile-max");
+                EffectManager.pulseGlow((StackPane) node); // 呼吸光晕（幂等）
             } else {
                 node.getStyleClass().remove("tile-max");
+                EffectManager.stopGlow((StackPane) node);
             }
         }
     }
@@ -793,9 +816,12 @@ public class GameController implements Initializable {
         }
     }
 
-    /** 三态遮罩轮换：显示指定面板，其余隐藏（spec §4.3.3 遮罩）。 */
+    /** 三态遮罩轮换：显示指定面板，其余隐藏（spec §4.3.3 遮罩）；彩带层恒不隐藏。 */
     private void showPanel(Node box) {
         for (Node n : overlay.getChildren()) {
+            if (n == confettiLayer) {
+                continue;
+            }
             n.setVisible(n == box);
         }
         overlay.setVisible(true);

@@ -281,7 +281,7 @@ record UndoResult(Tile[][] grid, int score, boolean revived)
 
 #### 4.1.7 `GameStats`
 
-- 字段：`score`、`steps`；随引擎走（undo 不影响二者，见 §4.7 全量约定）。
+- 字段：`score`、`steps`；随引擎走（撤销回退分数、步数不回退，且撤销操作本身使步数 +1——见 §4.7 全量约定）。
 - `getStatsSnapshot()` 返回防御拷贝。
 
 #### 4.1.8 `ScoreStore`（Preferences：最高分 + 历史榜单）
@@ -587,7 +587,7 @@ R            → handleNewGame()
     - 无效移动后 undo 无效果（栈未被污染）；
     - 新开局后栈清空；
     - 深度上限 20：连续 30 次有效移动后只能回退 20 次。
-12. 步骤统计：有效移动 steps+1；undo 后 steps 不变（见 §4.7 语义）；无效移动 steps 不变。
+12. 步骤统计：有效移动 steps+1；**undo 使步数 +1（视为一次操作，见 §4.7 语义）**；无效移动 steps 不变。
 13. 防御性拷贝：getGrid() 返回值修改不影响内部状态。
 
 UI 层：按定制决策 **不做自动化**，全部手动验证（见 §7 各里程碑验收）。

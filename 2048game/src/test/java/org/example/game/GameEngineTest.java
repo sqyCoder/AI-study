@@ -452,12 +452,12 @@ class GameEngineTest {
         assertEquals(3, e.getSteps());
 
         e.undo();
-        assertEquals(3, e.getSteps(), "撤销后步数不回退");
+        assertEquals(4, e.getSteps(), "撤销视为一次操作，步数 +1（spec §4.7）");
 
         e.setGrid(tiles(new int[][]{
                 {2, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}));
         e.move(Direction.LEFT);
-        assertEquals(3, e.getSteps(), "无效移动步数不变");
+        assertEquals(4, e.getSteps(), "无效移动步数不变");
     }
 
     // ===== 13. 防御性拷贝 =====
