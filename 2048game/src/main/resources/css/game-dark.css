@@ -24,7 +24,7 @@
 /* ============ 品牌字与胶囊卡 ============ */
 
 .app-title {
-    -fx-font-size: 38px;
+    -fx-font-size: 40px;
     -fx-font-weight: bold;
     -fx-fill: linear-gradient(to right, -accent-a, -accent-b);
     -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.5), 12, 0.35, 0, 1);
@@ -176,7 +176,7 @@
     -fx-background-radius: 999;
     -fx-pref-width: 46;
     -fx-pref-height: 46;
-    -fx-font-size: 19px;
+    -fx-font-size: 20px;
     -fx-text-fill: -text-main;
     -fx-cursor: hand;
     -fx-padding: 0;
@@ -188,6 +188,23 @@
 }
 
 .accent-button:hover {
+    -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.7), 20, 0.35, 0, 4);
+}
+
+/* 遮罩面板按钮（试试再来/继续游戏/关闭，spec2 §5 V5 打磨） */
+.app-button {
+    -fx-background-color: linear-gradient(to right, -accent-a, -accent-b);
+    -fx-background-radius: 999;
+    -fx-padding: 10 26 10 26;
+    -fx-min-width: 130;
+    -fx-text-fill: -on-accent;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.45), 16, 0.3, 0, 4);
+}
+
+.app-button:hover {
     -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.7), 20, 0.35, 0, 4);
 }
 
@@ -280,7 +297,7 @@
 }
 
 .panel-title {
-    -fx-font-size: 24px;
+    -fx-font-size: 26px;
     -fx-font-weight: bold;
     -fx-text-fill: -text-main;
 }
@@ -302,7 +319,11 @@
     -fx-text-fill: -text-dim;
 }
 
+/* 历史记录条目：小胶囊化（spec2 §5，V5 打磨） */
 .history-entry {
     -fx-font-size: 13px;
     -fx-text-fill: -text-main;
+    -fx-background-color: rgba(255, 255, 255, 0.06);
+    -fx-background-radius: 8;
+    -fx-padding: 4 14 4 14;
 }

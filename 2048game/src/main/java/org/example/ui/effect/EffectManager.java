@@ -195,15 +195,15 @@ public final class EffectManager {
 
     /**
      * 停止并清除某方块的呼吸光晕（节点失去 max 身份 / 从层中移除时调用）。
-     * 置空 effect 交还 CSS 默认效果。
+     * 仅当该方块确实在脉冲中时才清空 effect，避免误伤生成微光等瞬时特效。
      */
     public static void stopGlow(StackPane tile) {
         Timeline t = PULSES.remove(tile);
         if (t != null) {
             t.stop();
-        }
-        if (tile.getEffect() != null) {
-            tile.setEffect(null);
+            if (tile.getEffect() != null) {
+                tile.setEffect(null); // 交还 CSS 效果
+            }
         }
     }
 

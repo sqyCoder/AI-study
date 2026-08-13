@@ -816,7 +816,10 @@ public class GameController implements Initializable {
         }
     }
 
-    /** 三态遮罩轮换：显示指定面板，其余隐藏（spec §4.3.3 遮罩）；彩带层恒不隐藏。 */
+    /**
+     * 三态遮罩轮换：显示指定面板，其余隐藏（spec §4.3.3 遮罩）；彩带层恒不隐藏。
+     * V5 打磨：遮罩淡入 + 面板缩放弹出的渐入过渡。
+     */
     private void showPanel(Node box) {
         for (Node n : overlay.getChildren()) {
             if (n == confettiLayer) {
@@ -826,6 +829,17 @@ public class GameController implements Initializable {
         }
         overlay.setVisible(true);
         overlay.toFront();
+        overlay.setOpacity(0);
+        box.setScaleX(0.94);
+        box.setScaleY(0.94);
+        FadeTransition fade = new FadeTransition(Duration.millis(160), overlay);
+        fade.setToValue(1);
+        ScaleTransition pop = new ScaleTransition(Duration.millis(220), box);
+        pop.setToX(1);
+        pop.setToY(1);
+        pop.setInterpolator(Interpolator.EASE_OUT);
+        fade.play();
+        pop.play();
     }
 
     private void hideOverlay() {
