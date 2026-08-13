@@ -66,10 +66,10 @@
             <StackPane fx:id="boardArea" alignment="CENTER">
                 <!-- 玻璃卡片：半透明底+渐变描边+柔和阴影，包住棋盘（spec2 §3.1） -->
                 <StackPane fx:id="glassCard" styleClass="glass-card">
-                    <!-- 底板：N×N 空位色块，按尺寸重建；按 pref 收缩，由外层居中 -->
-                    <GridPane fx:id="boardGrid" maxWidth="USE_PREF_SIZE" maxHeight="USE_PREF_SIZE"/>
+                    <!-- 底板：N×N 空位色块，按尺寸重建；按 pref 收缩（-1=USE_PREF_SIZE），由外层居中 -->
+                    <GridPane fx:id="boardGrid" maxWidth="-1" maxHeight="-1"/>
                     <!-- 方块层：绝对定位，动画容器；与底板同一几何（同样收缩居中） -->
-                    <Pane fx:id="tileLayer" maxWidth="USE_PREF_SIZE" maxHeight="USE_PREF_SIZE"/>
+                    <Pane fx:id="tileLayer" maxWidth="-1" maxHeight="-1"/>
                 </StackPane>
                 <!-- 三态遮罩：GameOverBox / WinBox / StatsBox 轮换 -->
                 <StackPane fx:id="overlay" styleClass="overlay" visible="false">
