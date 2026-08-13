@@ -19,6 +19,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -167,6 +169,7 @@ public class GameController implements Initializable {
             sound.toggle();
             writePrefBool("sound", sound.isEnabled());
             refreshStateTexts();
+            sound.playClick();
             root.requestFocus();
         });
         undoButton.setOnAction(e -> {
@@ -199,13 +202,56 @@ public class GameController implements Initializable {
 
     /**
      * 装配入口：由 App 在 Scene/Stage 就绪后调用。
-     * 应用主题、按偏好语言刷新全部文案、设置窗口标题。
+     * 应用主题、按偏好语言刷新全部文案、设置窗口标题、注册全局按键。
      */
     public void attach(Stage stage) {
         this.stage = stage;
         theme.apply(stage.getScene());
         i18n.setLang(i18n.getLang());
         stage.setTitle(i18n.t("app.title"));
+        // 键盘监听放 Scene 过滤器（spec §4.3.3/§5 焦点对策）：
+        // 无论焦点在哪个控件，方向键/WASD/R/Z 均直达，不会被按钮/ComboBox 吞掉。
+        stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, this::onKeyPressed);
+        root.requestFocus();
+    }
+
+    // ==================== 键盘 ====================
+
+    /**
+     * 全局按键处理（spec §4.3.3）：
+     * 方向键 / WASD → handleMove；Z / Ctrl+Z → 撤销；R → 新游戏；其余不拦截。
+     * ComboBox 弹出中时方向键放行给列表选择。
+     */
+    private void onKeyPressed(KeyEvent e) {
+        if (sizeBox.isShowing()) {
+            return;
+        }
+        KeyCode code = e.getCode();
+        boolean handled = true;
+        if (code == KeyCode.UP || code == KeyCode.W) {
+            handleMove(Direction.UP);
+        } else if (code == KeyCode.DOWN || code == KeyCode.S) {
+            handleMove(Direction.DOWN);
+        } else if (code == KeyCode.LEFT || code == KeyCode.A) {
+            handleMove(Direction.LEFT);
+        } else if (code == KeyCode.RIGHT || code == KeyCode.D) {
+            handleMove(Direction.RIGHT);
+        } else if (code == KeyCode.Z) {
+            handleUndo();
+        } else if (code == KeyCode.R) {
+            handleNewGame();
+        } else {
+            handled = false;
+        }
+        if (handled) {
+            e.consume();
+        }
+    }
+
+    /** R 键 / 新游戏按钮：以当前尺寸重开。 */
+    private void handleNewGame() {
+        startNewGame(engine.getSize());
+        sound.playClick();
         root.requestFocus();
     }
 
