@@ -69,7 +69,7 @@ public class GameController implements Initializable {
     private static final long SPAWN_ANIM_MS = 160;
 
     @FXML
-    private BorderPane root;
+    private StackPane root;
     @FXML
     private StackPane boardArea;
     @FXML
@@ -79,8 +79,6 @@ public class GameController implements Initializable {
     @FXML
     private StackPane overlay;
 
-    @FXML
-    private Label titleLabel;
     @FXML
     private Label scoreCaptionLabel;
     @FXML
@@ -202,7 +200,6 @@ public class GameController implements Initializable {
         sizeBox.setValue(engine.getSize());
 
         // 静态文案绑定（语言切换自动刷新）
-        i18n.bind(titleLabel, "app.title");
         i18n.bind(scoreCaptionLabel, "score");
         i18n.bind(bestCaptionLabel, "best");
         i18n.bind(stepsCaptionLabel, "steps");
@@ -281,10 +278,22 @@ public class GameController implements Initializable {
             sound.playClick();
             root.requestFocus();
         });
-        upButton.setOnAction(e -> handleMove(Direction.UP));
-        downButton.setOnAction(e -> handleMove(Direction.DOWN));
-        leftButton.setOnAction(e -> handleMove(Direction.LEFT));
-        rightButton.setOnAction(e -> handleMove(Direction.RIGHT));
+        upButton.setOnAction(e -> {
+            sound.playClick();
+            handleMove(Direction.UP);
+        });
+        downButton.setOnAction(e -> {
+            sound.playClick();
+            handleMove(Direction.DOWN);
+        });
+        leftButton.setOnAction(e -> {
+            sound.playClick();
+            handleMove(Direction.LEFT);
+        });
+        rightButton.setOnAction(e -> {
+            sound.playClick();
+            handleMove(Direction.RIGHT);
+        });
 
         // 窗口拉伸：只重排不重建节点（spec §4.5）；首次尺寸就绪时自动重建
         boardArea.widthProperty().addListener((o, oldV, newV) -> relayout());
@@ -405,6 +414,9 @@ public class GameController implements Initializable {
 
     /** 窗口拉伸回调：尺寸变化只重排/缩放现有节点；节点缺失时全量重建。 */
     private void relayout() {
+        if (animationLock) {
+            return; // 动画期间忽略拉伸：动画收尾的 syncBoardWithEngine 会统一按新尺寸校正
+        }
         double w = boardArea.getWidth();
         double h = boardArea.getHeight();
         if (w <= 0 || h <= 0) {
@@ -507,6 +519,11 @@ public class GameController implements Initializable {
 
     /** 新开局 / 切换尺寸：重置引擎、隐藏遮罩、计时复位清零并重绘。 */
     private void startNewGame(int size) {
+        if (animationLock) {
+            // 动画期间忽略重开（spec §5：宁可丢，不可乱），下拉框回弹避免显示与引擎不一致
+            sizeBox.setValue(engine.getSize());
+            return;
+        }
         engine.startNewGame(size);
         sizeBox.setValue(size);
         resetTimer();

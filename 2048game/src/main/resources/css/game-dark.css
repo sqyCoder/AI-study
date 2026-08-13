@@ -1,4 +1,4 @@
-/* ============ 暗黑主题（spec §4.4，与 game-light.css 同构，仅换色值） ============ */
+/* ============ 暗黑主题（spec2 移动端式布局 V1 结构样式，与 game-light.css 同构） ============ */
 
 .root {
     -board-bg: #1a1c22;
@@ -30,17 +30,43 @@
     -fx-background-color: -board-bg;
 }
 
+/* ============ 品牌字与胶囊卡（spec2 §3.1） ============ */
+
 .app-title {
-    -fx-font-size: 36px;
+    -fx-font-size: 34px;
     -fx-font-weight: bold;
-    -fx-text-fill: -text-main;
+    -fx-fill: -text-main;
 }
 
-.score-box {
+.capsule-card {
     -fx-background-color: -score-bg;
-    -fx-background-radius: 6;
-    -fx-padding: 4 10 4 10;
-    -fx-min-width: 68;
+    -fx-background-radius: 14;
+    -fx-padding: 6 14 6 14;
+}
+
+.score-card {
+    -fx-min-width: 64;
+}
+
+.stats-pill {
+    -fx-padding: 4 12 4 12;
+}
+
+.pill {
+    -fx-background-color: -panel-bg;
+    -fx-background-radius: 14;
+    -fx-padding: 3 10 3 10;
+}
+
+.pill-caption {
+    -fx-font-size: 11px;
+    -fx-text-fill: -text-light;
+}
+
+.pill-value {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-light;
 }
 
 .score-caption {
@@ -49,7 +75,7 @@
 }
 
 .score-value {
-    -fx-font-size: 18px;
+    -fx-font-size: 17px;
     -fx-font-weight: bold;
     -fx-text-fill: -text-light;
 }
@@ -59,43 +85,86 @@
     -fx-text-fill: -text-main;
 }
 
-.app-button {
+/* ============ 图标圆钮 / 工具条按钮 ============ */
+
+.icon-button {
     -fx-background-color: -button-bg;
+    -fx-background-radius: 999;
+    -fx-pref-width: 34;
+    -fx-pref-height: 34;
+    -fx-text-fill: -text-light;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+}
+
+.lang-button {
+    -fx-background-radius: 999;
+    -fx-pref-width: 38;
+    -fx-font-size: 11px;
+}
+
+.toolbar {
+    -fx-background-color: -score-bg;
+    -fx-background-radius: 999;
+    -fx-padding: 8 18 8 18;
+}
+
+.tool-button {
+    -fx-background-color: -button-bg;
+    -fx-background-radius: 999;
+    -fx-padding: 8 18 8 18;
     -fx-text-fill: -text-light;
     -fx-font-weight: bold;
     -fx-font-size: 13px;
-    -fx-background-radius: 6;
-    -fx-padding: 6 12 6 12;
     -fx-cursor: hand;
 }
 
-.app-button:hover {
-    -fx-background-color: derive(-button-bg, 12%);
-}
-
-.app-button:disabled {
-    -fx-opacity: 0.45;
+.accent-button {
+    -fx-background-color: -button-bg;
+    -fx-background-radius: 999;
+    -fx-padding: 9 22 9 22;
+    -fx-min-width: 84;
+    -fx-text-fill: -text-light;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
 }
 
 .dpad-button {
-    -fx-font-size: 17px;
-    -fx-pref-width: 46px;
-    -fx-pref-height: 38px;
-    -fx-background-radius: 6;
+    -fx-background-color: -button-bg;
+    -fx-background-radius: 999;
+    -fx-pref-width: 46;
+    -fx-pref-height: 46;
+    -fx-font-size: 18px;
+    -fx-text-fill: -text-light;
     -fx-cursor: hand;
+    -fx-padding: 0;
 }
 
-.board-area {
-    -fx-alignment: center;
+.app-button:hover, .accent-button:hover, .tool-button:hover, .dpad-button:hover, .icon-button:hover {
+    -fx-background-color: derive(-button-bg, 14%);
+}
+
+.app-button:disabled, .tool-button:disabled {
+    -fx-opacity: 0.45;
+}
+
+/* ============ 棋盘 ============ */
+
+.glass-card {
+    -fx-background-color: -board-panel;
+    -fx-background-radius: 18;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 20, 0.15, 0, 8);
 }
 
 .cell {
     -fx-background-color: -cell-bg;
-    -fx-background-radius: 6;
+    -fx-background-radius: 8;
 }
 
 .tile {
-    -fx-background-radius: 6;
+    -fx-background-radius: 8;
     -fx-alignment: center;
 }
 
@@ -134,6 +203,8 @@
     -fx-effect: dropshadow(gaussian, -max-glow, 16, 0.8, 0, 0);
 }
 
+/* ============ 遮罩与面板 ============ */
+
 .overlay {
     -fx-background-color: -overlay-bg;
     -fx-alignment: center;
@@ -141,7 +212,7 @@
 
 .panel-box {
     -fx-background-color: -panel-bg;
-    -fx-background-radius: 8;
+    -fx-background-radius: 18;
     -fx-padding: 20 28 20 28;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 12, 0.2, 0, 3);
 }

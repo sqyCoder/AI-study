@@ -7,10 +7,10 @@ package org.example.ui;
  */
 public final class BoardLayout {
 
-    /** 棋盘外边距 */
-    public static final double PADDING = 10;
-    /** 格子间距 */
-    public static final double GAP = 10;
+    /** 棋盘外边距（spec2：由 10 增大到 14，配合卡片留白） */
+    public static final double PADDING = 14;
+    /** 格子间距（spec2：由 10 增大到 12，更透气） */
+    public static final double GAP = 12;
 
     private BoardLayout() {
         // 工具类，禁止实例化
