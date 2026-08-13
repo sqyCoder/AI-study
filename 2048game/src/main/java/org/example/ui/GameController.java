@@ -1,6 +1,10 @@
 package org.example.ui;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.prefs.Preferences;
 
@@ -9,7 +13,18 @@ import org.example.game.GameEngine;
 import org.example.game.MoveResult;
 import org.example.game.ScoreStore;
 import org.example.game.Tile;
+import org.example.game.TileMove;
+import org.example.game.TileSpawn;
 
+import javafx.animation.Animation;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.ParallelTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.Timeline;
+import javafx.animation.TranslateTransition;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -28,6 +43,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 /**
  * 主控制器（spec §4.3.3）：渲染、设置栏（尺寸/主题/语言/音效/撤销/统计）、
@@ -40,6 +56,13 @@ public class GameController implements Initializable {
 
     /** Preferences 根节点（与 ScoreStore 共用）。 */
     private static final String PREFS_NODE = "2048game";
+
+    /** 滑动动画时长（ms，spec §4.3.4）。 */
+    private static final long MOVE_ANIM_MS = 120;
+    /** 合并弹出动画时长（ms）。 */
+    private static final long MERGE_ANIM_MS = 100;
+    /** 生成块动画时长（ms）。 */
+    private static final long SPAWN_ANIM_MS = 160;
 
     @FXML
     private BorderPane root;
@@ -115,6 +138,8 @@ public class GameController implements Initializable {
     private ThemeManager theme;
     private SoundPlayer sound;
     private Stage stage;
+    /** 动画进行中：屏蔽新输入，保证逻辑与画面一致（spec NFR-3，防快速连按错乱）。 */
+    private boolean animationLock;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -258,10 +283,10 @@ public class GameController implements Initializable {
     // ==================== 渲染 ====================
 
     /**
-     * 统一重建入口：清空底板与方块层，按当前引擎局面全量重绘。
-     * 供"开局 / 切尺寸 / 撤销 / 每次移动（M5 起改为动画驱动）"复用。
+     * 无动画全量重绘：清空底板与方块层，按当前引擎局面重建。
+     * 供"开局 / 切尺寸 / 撤销 / 动画兜底"复用（spec §4.3.3：撤销直接重建不播动画）。
      */
-    private void rebuildBoard() {
+    private void renderBoard() {
         double w = boardArea.getWidth();
         double h = boardArea.getHeight();
         if (w <= 0 || h <= 0) {
@@ -323,19 +348,24 @@ public class GameController implements Initializable {
         double board = BoardLayout.boardSide(n, cell);
 
         if (tileLayer.getChildren().size() != countNonZero()) {
-            rebuildBoard();
+            renderBoard();
             return;
         }
-        // 仅重排：底板格子缩放 + 方块移动/缩放/字号
+        // 仅重排：底板格子缩放 + 方块移动/缩放/字号（动画节点 translate 归零后同步）
         for (Node node : boardGrid.getChildren()) {
             ((Region) node).setPrefSize(cell, cell);
         }
         Tile[][] grid = engine.getGrid();
         for (Node node : tileLayer.getChildren()) {
             int[] rc = (int[]) node.getUserData();
+            if (rc == null) {
+                continue;
+            }
             TileViewFactory.restyleTile((StackPane) node, grid[rc[0]][rc[1]].value(), cell);
             node.setLayoutX(BoardLayout.cellX(rc[1], cell));
             node.setLayoutY(BoardLayout.cellY(rc[0], cell));
+            node.setTranslateX(0);
+            node.setTranslateY(0);
         }
         tileLayer.setPrefSize(board, board);
     }
@@ -354,12 +384,24 @@ public class GameController implements Initializable {
 
     // ==================== 交互 ====================
 
-    /** 移动（方向按钮与键盘共用入口，M4 起键盘接入）。 */
+    /**
+     * 移动（方向按钮与键盘共用入口）。
+     * 动画期间屏蔽新输入（animationLock，spec NFR-3）；移动有效时走动画流程。
+     */
     private void handleMove(Direction dir) {
+        if (animationLock) {
+            return;
+        }
         MoveResult result = engine.move(dir);
         if (result.moved()) {
-            rebuildBoard();
-            sound.playClick();
+            if (result.moves().isEmpty()) {
+                renderBoard(); // 防御兜底：无移动记录但引擎已变化
+            } else {
+                animateMove(result);
+            }
+            if (result.scoreDelta() > 0) {
+                sound.playMerge();
+            }
         }
         root.requestFocus();
     }
@@ -369,7 +411,7 @@ public class GameController implements Initializable {
             return;
         }
         hideOverlay();
-        rebuildBoard();
+        renderBoard();
         sound.playClick();
     }
 
@@ -378,7 +420,194 @@ public class GameController implements Initializable {
         engine.startNewGame(size);
         sizeBox.setValue(size);
         hideOverlay();
-        rebuildBoard();
+        renderBoard();
+    }
+
+    // ==================== 动画编排（spec §4.3.4） ====================
+
+    /**
+     * 动画驱动重绘：依据 MoveResult.moves 批量播放滑移（120ms），
+     * 结束后重建合并块（缩放弹出）、生成块淡入，最后与引擎做一致性校正。
+     */
+    private void animateMove(MoveResult result) {
+        animationLock = true;
+        double cell = currentCellSize();
+
+        Map<String, StackPane> byPos = indexTiles();
+        List<Animation> transitions = new ArrayList<>();
+        Map<String, Integer> merges = new HashMap<>();
+
+        for (TileMove m : result.moves()) {
+            StackPane node = byPos.get(key(m.fromRow(), m.fromCol()));
+            if (node == null) {
+                continue; // 节点缺失：由结束后的校正兜底
+            }
+            double fromX = BoardLayout.cellX(m.fromCol(), cell);
+            double fromY = BoardLayout.cellY(m.fromRow(), cell);
+            double toX = BoardLayout.cellX(m.toCol(), cell);
+            double toY = BoardLayout.cellY(m.toRow(), cell);
+            // 先落到目标格（最终态），再以 translate 反向补差形成滑移
+            node.setLayoutX(toX);
+            node.setLayoutY(toY);
+            node.setTranslateX(fromX - toX);
+            node.setTranslateY(fromY - toY);
+            node.setUserData(new int[]{m.toRow(), m.toCol()});
+            TranslateTransition t = new TranslateTransition(Duration.millis(MOVE_ANIM_MS), node);
+            t.setInterpolator(Interpolator.EASE_BOTH);
+            t.setToX(0);
+            t.setToY(0);
+            transitions.add(t);
+            if (m.isMerge()) {
+                merges.put(key(m.toRow(), m.toCol()), m.value());
+            }
+        }
+
+        ParallelTransition moveAll = new ParallelTransition(transitions.toArray(new Animation[0]));
+        moveAll.setOnFinished(e -> finishMoveAnimation(result, merges, cell));
+        moveAll.play();
+    }
+
+    /** 滑移完成后：合并块重建弹出 + 生成块淡入，最后一致性校正并解锁。 */
+    private void finishMoveAnimation(MoveResult result, Map<String, Integer> merges, double cell) {
+        List<Animation> fx = new ArrayList<>();
+
+        // 合并块：移除原节点，在目标位新建合并值节点，缩放弹出（0.5→1.1→1.0）
+        for (Map.Entry<String, Integer> e : merges.entrySet()) {
+            int[] rc = parseKey(e.getKey());
+            removeTilesAt(rc[0], rc[1]);
+            StackPane merged = TileViewFactory.createTile(e.getValue(), cell);
+            merged.setUserData(rc);
+            merged.setLayoutX(BoardLayout.cellX(rc[1], cell));
+            merged.setLayoutY(BoardLayout.cellY(rc[0], cell));
+            tileLayer.getChildren().add(merged);
+            Timeline timeline = new Timeline(
+                    new KeyFrame(Duration.ZERO,
+                            new KeyValue(merged.scaleXProperty(), 0.5),
+                            new KeyValue(merged.scaleYProperty(), 0.5)),
+                    new KeyFrame(Duration.millis(MERGE_ANIM_MS * 0.6),
+                            new KeyValue(merged.scaleXProperty(), 1.1),
+                            new KeyValue(merged.scaleYProperty(), 1.1)),
+                    new KeyFrame(Duration.millis(MERGE_ANIM_MS),
+                            new KeyValue(merged.scaleXProperty(), 1.0),
+                            new KeyValue(merged.scaleYProperty(), 1.0)));
+            fx.add(timeline);
+        }
+
+        // 生成块：目标位新建节点，淡入 + 缩放（160ms）
+        if (result.spawned() != null) {
+            TileSpawn s = result.spawned();
+            StackPane spawn = TileViewFactory.createTile(s.value(), cell);
+            spawn.setUserData(new int[]{s.row(), s.col()});
+            spawn.setLayoutX(BoardLayout.cellX(s.col(), cell));
+            spawn.setLayoutY(BoardLayout.cellY(s.row(), cell));
+            spawn.setOpacity(0);
+            spawn.setScaleX(0.5);
+            spawn.setScaleY(0.5);
+            tileLayer.getChildren().add(spawn);
+            FadeTransition fade = new FadeTransition(Duration.millis(SPAWN_ANIM_MS), spawn);
+            fade.setFromValue(0);
+            fade.setToValue(1);
+            ScaleTransition scale = new ScaleTransition(Duration.millis(SPAWN_ANIM_MS), spawn);
+            scale.setFromX(0.5);
+            scale.setFromY(0.5);
+            scale.setToX(1.0);
+            scale.setToY(1.0);
+            scale.setInterpolator(Interpolator.EASE_OUT);
+            fx.add(new ParallelTransition(fade, scale));
+        }
+
+        ParallelTransition all = new ParallelTransition(fx.toArray(new Animation[0]));
+        all.setOnFinished(e -> {
+            // 动画结束：与引擎做一致性校正（补齐/移除/校正），确保画面与逻辑完全一致
+            syncBoardWithEngine();
+            animationLock = false;
+        });
+        all.play();
+    }
+
+    /** 一致性校正：tileLayer 与引擎网格逐格对齐（防御动画残留/缺失，spec M5 验收）。 */
+    private void syncBoardWithEngine() {
+        int n = engine.getSize();
+        double cell = currentCellSize();
+        Tile[][] grid = engine.getGrid();
+
+        // 移除与引擎不符的节点（引擎为空或坐标失效）
+        tileLayer.getChildren().removeIf(node -> {
+            int[] rc = (int[]) node.getUserData();
+            return rc == null || rc[0] < 0 || rc[0] >= n || rc[1] < 0 || rc[1] >= n
+                    || grid[rc[0]][rc[1]].isEmpty();
+        });
+
+        // 校正位置 / 值 / 补齐缺失
+        for (int r = 0; r < n; r++) {
+            for (int c = 0; c < n; c++) {
+                if (grid[r][c].isEmpty()) {
+                    continue;
+                }
+                StackPane node = findTileAt(r, c);
+                if (node == null) {
+                    node = TileViewFactory.createTile(grid[r][c].value(), cell);
+                    node.setUserData(new int[]{r, c});
+                    tileLayer.getChildren().add(node);
+                } else {
+                    TileViewFactory.restyleTile(node, grid[r][c].value(), cell);
+                }
+                node.setLayoutX(BoardLayout.cellX(c, cell));
+                node.setLayoutY(BoardLayout.cellY(r, cell));
+                node.setTranslateX(0);
+                node.setTranslateY(0);
+                node.setOpacity(1);
+                node.setScaleX(1);
+                node.setScaleY(1);
+            }
+        }
+        tileLayer.setPrefSize(BoardLayout.boardSide(n, cell), BoardLayout.boardSide(n, cell));
+        updateLabels();
+    }
+
+    // ==================== 渲染工具 ====================
+
+    private double currentCellSize() {
+        return BoardLayout.cellSize(boardArea.getWidth(), boardArea.getHeight(), engine.getSize());
+    }
+
+    /** 按节点 userData 坐标索引现有方块。 */
+    private Map<String, StackPane> indexTiles() {
+        Map<String, StackPane> map = new HashMap<>();
+        for (Node node : tileLayer.getChildren()) {
+            int[] rc = (int[]) node.getUserData();
+            if (rc != null) {
+                map.put(key(rc[0], rc[1]), (StackPane) node);
+            }
+        }
+        return map;
+    }
+
+    private StackPane findTileAt(int r, int c) {
+        for (Node node : tileLayer.getChildren()) {
+            int[] rc = (int[]) node.getUserData();
+            if (rc != null && rc[0] == r && rc[1] == c) {
+                return (StackPane) node;
+            }
+        }
+        return null;
+    }
+
+    /** 移除指定格上的所有方块节点（合并后重建前调用）。 */
+    private void removeTilesAt(int r, int c) {
+        tileLayer.getChildren().removeIf(node -> {
+            int[] rc = (int[]) node.getUserData();
+            return rc != null && rc[0] == r && rc[1] == c;
+        });
+    }
+
+    private static String key(int r, int c) {
+        return r + "," + c;
+    }
+
+    private static int[] parseKey(String k) {
+        String[] parts = k.split(",");
+        return new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1])};
     }
 
     // ==================== 统计面板 ====================

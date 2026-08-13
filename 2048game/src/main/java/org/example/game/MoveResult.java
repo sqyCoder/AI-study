@@ -22,16 +22,3 @@ public record MoveResult(
         return new MoveResult(false, 0, List.of(), null, gameOver, false);
     }
 }
-
-/**
- * 单块移动记录：from 坐标 → to 坐标；isMerge=true 表示该记录是合并源块
- * （同一目标可能对应两条记录，两个源块同时飞向目标格）。
- */
-record TileMove(int fromRow, int fromCol, int toRow, int toCol, int value, boolean isMerge) {
-}
-
-/**
- * 新生成方块的位置与值（90% 为 2，10% 为 4）。
- */
-record TileSpawn(int row, int col, int value) {
-}
