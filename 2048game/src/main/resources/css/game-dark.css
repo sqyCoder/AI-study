@@ -1,51 +1,46 @@
-/* ============ 暗黑主题（spec2 移动端式布局 V1 结构样式，与 game-light.css 同构） ============ */
+/* ============ 暗黑主题（spec2 §5.3 现代柔和渐变卡片风，与 game-light.css 同构） ============ */
 
 .root {
-    -board-bg: #1a1c22;
-    -board-panel: #23262e;
-    -cell-bg: #2e3138;
-    -text-main: #e8e8e8;
-    -text-light: #f5f5f5;
-    -text-dim: #9aa0ab;
-    -score-bg: #2e3138;
-    -button-bg: #3a3e4a;
-    -overlay-bg: rgba(26, 28, 34, 0.78);
-    -panel-bg: #23262e;
-    -tile-2-bg: #41444f;    -tile-2-text: #e8e8e8;
-    -tile-4-bg: #565a66;    -tile-4-text: #f5f5f5;
-    -tile-8-bg: #b07a3f;    -tile-8-text: #f5f5f5;
-    -tile-16-bg: #b0643a;   -tile-16-text: #f5f5f5;
-    -tile-32-bg: #b04936;   -tile-32-text: #f5f5f5;
-    -tile-64-bg: #b03a2c;   -tile-64-text: #f5f5f5;
-    -tile-128-bg: #b09a2e;  -tile-128-text: #1a1c22;
-    -tile-256-bg: #c2a81f;  -tile-256-text: #1a1c22;
-    -tile-512-bg: #d4b612;  -tile-512-text: #1a1c22;
-    -tile-1024-bg: #e6c400; -tile-1024-text: #1a1c22;
-    -tile-2048-bg: #f2cc0a; -tile-2048-text: #1a1c22;
-    -tile-super-bg: #e8e8e8; -tile-super-text: #1a1c22;
+    -fx-font-family: "MiSans";
+    -bg-top: #141923;
+    -bg-bottom: #20263a;
+    -card-bg: rgba(255, 255, 255, 0.06);
+    -card-border: rgba(255, 255, 255, 0.12);
+    -card-shadow: rgba(0, 0, 0, 0.5);
+    -text-main: #e6e9f2;
+    -text-dim: #98a0b3;
+    -accent-a: #22d3ee;
+    -accent-b: #7c6cf0;
+    -on-accent: #ffffff;
+    -cell-bg: rgba(255, 255, 255, 0.055);
     -max-glow: #ffc14d;
+    -overlay-bg: rgba(20, 25, 35, 0.78);
 }
 
 .root-pane {
-    -fx-background-color: -board-bg;
+    -fx-background-color: linear-gradient(to bottom, -bg-top, -bg-bottom);
 }
 
-/* ============ 品牌字与胶囊卡（spec2 §3.1） ============ */
+/* ============ 品牌字与胶囊卡 ============ */
 
 .app-title {
-    -fx-font-size: 34px;
+    -fx-font-size: 38px;
     -fx-font-weight: bold;
-    -fx-fill: -text-main;
+    -fx-fill: linear-gradient(to right, -accent-a, -accent-b);
+    -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.5), 12, 0.35, 0, 1);
 }
 
 .capsule-card {
-    -fx-background-color: -score-bg;
-    -fx-background-radius: 14;
-    -fx-padding: 6 14 6 14;
+    -fx-background-color: -card-bg;
+    -fx-background-radius: 16;
+    -fx-border-color: -card-border;
+    -fx-border-radius: 16;
+    -fx-border-width: 1;
+    -fx-padding: 6 16 6 16;
 }
 
 .score-card {
-    -fx-min-width: 64;
+    -fx-min-width: 66;
 }
 
 .stats-pill {
@@ -53,97 +48,147 @@
 }
 
 .pill {
-    -fx-background-color: -panel-bg;
-    -fx-background-radius: 14;
+    -fx-background-color: rgba(255, 255, 255, 0.07);
+    -fx-background-radius: 16;
+    -fx-border-color: -card-border;
+    -fx-border-radius: 16;
+    -fx-border-width: 1;
     -fx-padding: 3 10 3 10;
 }
 
 .pill-caption {
     -fx-font-size: 11px;
-    -fx-text-fill: -text-light;
+    -fx-text-fill: -text-dim;
 }
 
 .pill-value {
     -fx-font-size: 14px;
     -fx-font-weight: bold;
-    -fx-text-fill: -text-light;
+    -fx-text-fill: -text-main;
 }
 
 .score-caption {
     -fx-font-size: 11px;
-    -fx-text-fill: -text-light;
+    -fx-text-fill: -text-dim;
 }
 
 .score-value {
-    -fx-font-size: 17px;
+    -fx-font-size: 18px;
     -fx-font-weight: bold;
-    -fx-text-fill: -text-light;
+    -fx-text-fill: -text-main;
 }
 
 .hint-label {
     -fx-font-size: 12px;
+    -fx-text-fill: -text-dim;
+}
+
+.svg-icon {
+    -fx-fill: -text-main;
+}
+
+.tooltip {
+    -fx-background-color: rgba(60, 66, 84, 0.95);
+    -fx-background-radius: 8;
+    -fx-text-fill: #e6e9f2;
+    -fx-font-size: 12px;
+    -fx-padding: 5 10 5 10;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 8, 0.15, 0, 2);
+}
+
+/* ============ 下拉框 pill 化 ============ */
+
+.combo-box {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.combo-box .list-cell {
+    -fx-background-color: transparent;
     -fx-text-fill: -text-main;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-padding: 2 2 2 6;
+}
+
+.combo-box .arrow-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0 6 0 2;
+}
+
+.combo-box .arrow {
+    -fx-background-color: -text-dim;
 }
 
 /* ============ 图标圆钮 / 工具条按钮 ============ */
 
 .icon-button {
-    -fx-background-color: -button-bg;
+    -fx-background-color: rgba(255, 255, 255, 0.1);
     -fx-background-radius: 999;
     -fx-pref-width: 34;
     -fx-pref-height: 34;
-    -fx-text-fill: -text-light;
+    -fx-text-fill: -text-main;
     -fx-font-size: 13px;
     -fx-cursor: hand;
     -fx-padding: 0;
 }
 
 .lang-button {
-    -fx-background-radius: 999;
     -fx-pref-width: 38;
     -fx-font-size: 11px;
 }
 
 .toolbar {
-    -fx-background-color: -score-bg;
+    -fx-background-color: -card-bg;
     -fx-background-radius: 999;
+    -fx-border-color: -card-border;
+    -fx-border-radius: 999;
+    -fx-border-width: 1;
     -fx-padding: 8 18 8 18;
+    -fx-effect: dropshadow(gaussian, -card-shadow, 18, 0.2, 0, 6);
 }
 
 .tool-button {
-    -fx-background-color: -button-bg;
+    -fx-background-color: rgba(255, 255, 255, 0.1);
     -fx-background-radius: 999;
     -fx-padding: 8 18 8 18;
-    -fx-text-fill: -text-light;
+    -fx-text-fill: -text-main;
     -fx-font-weight: bold;
     -fx-font-size: 13px;
     -fx-cursor: hand;
 }
 
 .accent-button {
-    -fx-background-color: -button-bg;
+    -fx-background-color: linear-gradient(to right, -accent-a, -accent-b);
     -fx-background-radius: 999;
     -fx-padding: 9 22 9 22;
-    -fx-min-width: 84;
-    -fx-text-fill: -text-light;
+    -fx-min-width: 88;
+    -fx-text-fill: -on-accent;
     -fx-font-weight: bold;
     -fx-font-size: 13px;
     -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.45), 16, 0.3, 0, 4);
 }
 
 .dpad-button {
-    -fx-background-color: -button-bg;
+    -fx-background-color: rgba(255, 255, 255, 0.1);
     -fx-background-radius: 999;
     -fx-pref-width: 46;
     -fx-pref-height: 46;
-    -fx-font-size: 18px;
-    -fx-text-fill: -text-light;
+    -fx-font-size: 19px;
+    -fx-text-fill: -text-main;
     -fx-cursor: hand;
     -fx-padding: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 8, 0.15, 0, 2);
 }
 
-.app-button:hover, .accent-button:hover, .tool-button:hover, .dpad-button:hover, .icon-button:hover {
-    -fx-background-color: derive(-button-bg, 14%);
+.icon-button:hover, .tool-button:hover, .dpad-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.18);
+}
+
+.accent-button:hover {
+    -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.7), 20, 0.35, 0, 4);
 }
 
 .app-button:disabled, .tool-button:disabled {
@@ -153,54 +198,62 @@
 /* ============ 棋盘 ============ */
 
 .glass-card {
-    -fx-background-color: -board-panel;
+    -fx-background-color: linear-gradient(to bottom right, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
     -fx-background-radius: 18;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 20, 0.15, 0, 8);
+    -fx-border-color: -card-border;
+    -fx-border-radius: 18;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, -card-shadow, 24, 0.2, 0, 10);
 }
 
 .cell {
     -fx-background-color: -cell-bg;
-    -fx-background-radius: 8;
+    -fx-background-radius: 10;
 }
 
 .tile {
-    -fx-background-radius: 8;
+    -fx-background-radius: 10;
     -fx-alignment: center;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 8, 0.2, 0, 2);
 }
 
 .tile-label {
     -fx-font-weight: bold;
-    -fx-font-family: "System";
+    -fx-font-family: "MiSans";
 }
 
-.tile-2     .tile-label { -fx-text-fill: -tile-2-text; }
-.tile-4     .tile-label { -fx-text-fill: -tile-4-text; }
-.tile-8     .tile-label { -fx-text-fill: -tile-8-text; }
-.tile-16    .tile-label { -fx-text-fill: -tile-16-text; }
-.tile-32    .tile-label { -fx-text-fill: -tile-32-text; }
-.tile-64    .tile-label { -fx-text-fill: -tile-64-text; }
-.tile-128   .tile-label { -fx-text-fill: -tile-128-text; }
-.tile-256   .tile-label { -fx-text-fill: -tile-256-text; }
-.tile-512   .tile-label { -fx-text-fill: -tile-512-text; }
-.tile-1024  .tile-label { -fx-text-fill: -tile-1024-text; }
-.tile-2048  .tile-label { -fx-text-fill: -tile-2048-text; }
-.tile-super .tile-label { -fx-text-fill: -tile-super-text; }
+.tile-2     .tile-label { -fx-text-fill: #e6e9f2; }
+.tile-4     .tile-label { -fx-text-fill: #f0f2f8; }
+.tile-8     .tile-label { -fx-text-fill: #ffffff; }
+.tile-16    .tile-label { -fx-text-fill: #ffffff; }
+.tile-32    .tile-label { -fx-text-fill: #ffffff; }
+.tile-64    .tile-label { -fx-text-fill: #ffffff; }
+.tile-128   .tile-label { -fx-text-fill: #141923; }
+.tile-256   .tile-label { -fx-text-fill: #141923; }
+.tile-512   .tile-label { -fx-text-fill: #141923; }
+.tile-1024  .tile-label { -fx-text-fill: #141923; }
+.tile-2048  .tile-label { -fx-text-fill: #141923; }
+.tile-super .tile-label { -fx-text-fill: #141923; }
 
-.tile-2     { -fx-background-color: -tile-2-bg; }
-.tile-4     { -fx-background-color: -tile-4-bg; }
-.tile-8     { -fx-background-color: -tile-8-bg; }
-.tile-16    { -fx-background-color: -tile-16-bg; }
-.tile-32    { -fx-background-color: -tile-32-bg; }
-.tile-64    { -fx-background-color: -tile-64-bg; }
-.tile-128   { -fx-background-color: -tile-128-bg; }
-.tile-256   { -fx-background-color: -tile-256-bg; }
-.tile-512   { -fx-background-color: -tile-512-bg; }
-.tile-1024  { -fx-background-color: -tile-1024-bg; }
-.tile-2048  { -fx-background-color: -tile-2048-bg; }
-.tile-super { -fx-background-color: -tile-super-bg; }
+.tile-2     { -fx-background-color: linear-gradient(to bottom right, #333848, #3d4356); }
+.tile-4     { -fx-background-color: linear-gradient(to bottom right, #3f465c, #4b536b); }
+.tile-8     { -fx-background-color: linear-gradient(to bottom right, #a06a35, #b97f3d); }
+.tile-16    { -fx-background-color: linear-gradient(to bottom right, #a05f34, #c06e3c); }
+.tile-32    { -fx-background-color: linear-gradient(to bottom right, #a05533, #c05a36); }
+.tile-64    { -fx-background-color: linear-gradient(to bottom right, #a04a2e, #bf4f2d); }
+.tile-128   { -fx-background-color: linear-gradient(to bottom right, #a88a2e, #c2a81f); }
+.tile-256   { -fx-background-color: linear-gradient(to bottom right, #b89a20, #d2b51a); }
+.tile-512   { -fx-background-color: linear-gradient(to bottom right, #c8a914, #e2c20f); }
+.tile-1024  { -fx-background-color: linear-gradient(to bottom right, #d8b80c, #f2cf0a); }
+.tile-2048  { -fx-background-color: linear-gradient(to bottom right, #f5cf3f, #ffdb3d); }
+.tile-super { -fx-background-color: linear-gradient(to bottom right, #eef0f5, #d8dce8); }
+
+.tile-2048, .tile-super {
+    -fx-effect: dropshadow(gaussian, -max-glow, 14, 0.55, 0, 0);
+}
 
 .tile-max {
-    -fx-effect: dropshadow(gaussian, -max-glow, 16, 0.8, 0, 0);
+    -fx-effect: dropshadow(gaussian, -max-glow, 18, 0.8, 0, 0);
 }
 
 /* ============ 遮罩与面板 ============ */
@@ -211,14 +264,17 @@
 }
 
 .panel-box {
-    -fx-background-color: -panel-bg;
-    -fx-background-radius: 18;
-    -fx-padding: 20 28 20 28;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 12, 0.2, 0, 3);
+    -fx-background-color: rgba(46, 52, 70, 0.92);
+    -fx-background-radius: 20;
+    -fx-border-color: -card-border;
+    -fx-border-radius: 20;
+    -fx-border-width: 1;
+    -fx-padding: 22 30 22 30;
+    -fx-effect: dropshadow(gaussian, -card-shadow, 24, 0.2, 0, 8);
 }
 
 .panel-title {
-    -fx-font-size: 22px;
+    -fx-font-size: 24px;
     -fx-font-weight: bold;
     -fx-text-fill: -text-main;
 }
@@ -229,9 +285,9 @@
 }
 
 .panel-score {
-    -fx-font-size: 24px;
+    -fx-font-size: 26px;
     -fx-font-weight: bold;
-    -fx-text-fill: -text-main;
+    -fx-text-fill: linear-gradient(to right, -accent-a, -accent-b);
 }
 
 .history-caption {

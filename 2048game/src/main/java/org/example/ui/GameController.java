@@ -38,9 +38,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
@@ -309,6 +309,7 @@ public class GameController implements Initializable {
      */
     public void attach(Stage stage) {
         this.stage = stage;
+        FontKit.load(); // 注册内置 MiSans 字体（失败静默回退，spec2 §6）
         theme.apply(stage.getScene());
         i18n.setLang(i18n.getLang());
         stage.setTitle(i18n.t("app.title"));
@@ -865,10 +866,21 @@ public class GameController implements Initializable {
         }
     }
 
+    /**
+     * 图标按钮状态刷新（spec2 §4.3）：主题/音效用 SVG 图标 + Tooltip，
+     * 语言按钮保留文字（中/EN）；Tooltip 文案走 i18n，切换语言即时刷新。
+     */
     private void updateButtons() {
-        themeButton.setText(i18n.t("theme." + theme.getCurrent()));
+        boolean dark = ThemeManager.DARK.equals(theme.getCurrent());
+        themeButton.setGraphic(Icons.theme(dark));
+        themeButton.setTooltip(new Tooltip(i18n.t(dark ? "theme.dark" : "theme.light")));
+        soundButton.setGraphic(sound.isEnabled() ? Icons.soundOn() : Icons.soundOff());
+        soundButton.setTooltip(new Tooltip(i18n.t(sound.isEnabled() ? "sound.on" : "sound.off")));
+        statsButton.setGraphic(Icons.stats());
+        statsButton.setTooltip(new Tooltip(i18n.t("stats")));
+        undoButton.setGraphic(Icons.undo());
+        undoButton.setTooltip(new Tooltip(i18n.t("undo")));
         langButton.setText(I18n.LANG_ZH.equals(i18n.getLang()) ? "中" : "EN");
-        soundButton.setText(i18n.t(sound.isEnabled() ? "sound.on" : "sound.off"));
     }
 
     private void updateLabels() {

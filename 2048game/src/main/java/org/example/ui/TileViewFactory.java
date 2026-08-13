@@ -3,7 +3,6 @@ package org.example.ui;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 
 /**
  * 方块节点工厂（spec §4.3.2）：按数值与格宽生成/更新方块节点。
@@ -37,7 +36,8 @@ public final class TileViewFactory {
         tile.getStyleClass().add(tileClass(value));
         Label label = (Label) tile.getChildren().get(0);
         label.setText(String.valueOf(value));
-        label.setFont(Font.font("System", FontWeight.BOLD, Math.max(8, cellSize * fontFactor(value))));
+        // 字号沿用位数衰减系数；字体用内置 MiSans（加载失败回退 System，spec2 §6）
+        label.setFont(FontKit.bold(Math.max(8, cellSize * fontFactor(value))));
         tile.setPrefSize(cellSize, cellSize);
         tile.setMinSize(cellSize, cellSize);
         tile.setMaxSize(cellSize, cellSize);
