@@ -405,7 +405,9 @@ public class GameController implements Initializable {
 
         // 方块层：非零块按引擎局面绝对定位
         for (Node node : tileLayer.getChildren()) {
-            EffectManager.stopGlow((StackPane) node); // 全量重建前清掉呼吸光晕
+            if (node instanceof StackPane sp) {
+                EffectManager.stopGlow(sp); // 全量重建前清掉呼吸光晕（飘字 Label 除外）
+            }
         }
         tileLayer.getChildren().clear();
         Tile[][] grid = engine.getGrid();
@@ -684,8 +686,8 @@ public class GameController implements Initializable {
             int[] rc = (int[]) node.getUserData();
             boolean stale = rc == null || rc[0] < 0 || rc[0] >= n || rc[1] < 0 || rc[1] >= n
                     || grid[rc[0]][rc[1]].isEmpty();
-            if (stale) {
-                EffectManager.stopGlow((StackPane) node); // 停止呼吸光晕，防节点泄漏
+            if (stale && node instanceof StackPane sp) {
+                EffectManager.stopGlow(sp); // 停止呼吸光晕，防节点泄漏（飘字 Label 无 userData，先行排除）
             }
             return stale;
         });
