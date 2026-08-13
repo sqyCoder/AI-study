@@ -23,6 +23,7 @@
     -tile-1024-bg: #e6c400; -tile-1024-text: #1a1c22;
     -tile-2048-bg: #f2cc0a; -tile-2048-text: #1a1c22;
     -tile-super-bg: #e8e8e8; -tile-super-text: #1a1c22;
+    -max-glow: #ffc14d;
 }
 
 .root-pane {
@@ -128,6 +129,10 @@
 .tile-1024  { -fx-background-color: -tile-1024-bg; }
 .tile-2048  { -fx-background-color: -tile-2048-bg; }
 .tile-super { -fx-background-color: -tile-super-bg; }
+
+.tile-max {
+    -fx-effect: dropshadow(gaussian, -max-glow, 16, 0.8, 0, 0);
+}
 
 .overlay {
     -fx-background-color: -overlay-bg;

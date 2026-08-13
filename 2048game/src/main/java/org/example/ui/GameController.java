@@ -214,6 +214,10 @@ public class GameController implements Initializable {
         i18n.bind(winTitleLabel, "win.title");
         i18n.bind(tryAgainButton, "gameOver.tryAgain");
         i18n.bind(keepGoingButton, "win.keepGoing");
+        i18n.bind(newGameButton, "newGame");
+        i18n.bind(undoButton, "undo");
+        i18n.bind(statsButton, "stats");
+        i18n.bind(closeStatsButton, "close");
 
         // 语言切换时需按当前主题/音效状态重刷按钮文本与数值
         i18n.addRefreshCallback(this::refreshStateTexts);
@@ -395,6 +399,7 @@ public class GameController implements Initializable {
         }
         tileLayer.setPrefSize(board, board);
 
+        updateMaxTileStyle();
         updateLabels();
     }
 
@@ -433,6 +438,7 @@ public class GameController implements Initializable {
             node.setTranslateY(0);
         }
         tileLayer.setPrefSize(board, board);
+        updateMaxTileStyle();
     }
 
     private int countNonZero() {
@@ -665,6 +671,7 @@ public class GameController implements Initializable {
             }
         }
         tileLayer.setPrefSize(BoardLayout.boardSide(n, cell), BoardLayout.boardSide(n, cell));
+        updateMaxTileStyle();
         updateLabels();
     }
 
@@ -706,6 +713,32 @@ public class GameController implements Initializable {
 
     private static String key(int r, int c) {
         return r + "," + c;
+    }
+
+    /**
+     * maxTile 样式更新（spec §4.3.4 步骤 5）：当前棋盘最高块（≥128）加发光高亮，
+     * 其余去除；重绘/拉伸/动画收尾后调用，避免 restyle 清掉样式类后遗留错乱。
+     */
+    private void updateMaxTileStyle() {
+        Tile[][] grid = engine.getGrid();
+        int max = 0;
+        for (Tile[] row : grid) {
+            for (Tile t : row) {
+                max = Math.max(max, t.value());
+            }
+        }
+        for (Node node : tileLayer.getChildren()) {
+            int[] rc = (int[]) node.getUserData();
+            boolean isMax = false;
+            if (rc != null && max >= 128 && rc[0] < grid.length && rc[1] < grid[rc[0]].length) {
+                isMax = grid[rc[0]][rc[1]].value() == max;
+            }
+            if (isMax) {
+                node.getStyleClass().add("tile-max");
+            } else {
+                node.getStyleClass().remove("tile-max");
+            }
+        }
     }
 
     private static int[] parseKey(String k) {

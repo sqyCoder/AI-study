@@ -21,9 +21,9 @@
     -tile-128-bg: #edcf72; -tile-128-text: #f9f6f2;
     -tile-256-bg: #edcc61; -tile-256-text: #f9f6f2;
     -tile-512-bg: #edc850; -tile-512-text: #f9f6f2;
-    -tile-1024-bg: #edc53f; -tile-1024-text: #f9f6f2;
-    -tile-2048-bg: #edc22e; -tile-2048-text: #f9f6f2;
+    -tile-1024-bg: #edc53f; -tile-1024-text: #f9f6f2;    -tile-2048-bg: #edc22e; -tile-2048-text: #f9f6f2;
     -tile-super-bg: #3c3a32; -tile-super-text: #f9f6f2;
+    -max-glow: #ffd27a;
 }
 
 .root-pane {
@@ -135,6 +135,10 @@
 .tile-1024  { -fx-background-color: -tile-1024-bg; }
 .tile-2048  { -fx-background-color: -tile-2048-bg; }
 .tile-super { -fx-background-color: -tile-super-bg; }
+
+.tile-max {
+    -fx-effect: dropshadow(gaussian, -max-glow, 16, 0.8, 0, 0);
+}
 
 /* ============ 遮罩与面板 ============ */
 
