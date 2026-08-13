@@ -29,8 +29,8 @@ public final class BoardLayout {
 
     /**
      * 第 col 列格子的左边缘 x 坐标（方块层绝对定位用）。
-     * 棋盘内布局：左缘留 1 个 GAP，格子间距 GAP，
-     * 与底板 GridPane（padding=GAP、gap=GAP）的格子起点完全一致。
+     * 棋盘内布局：左缘留 1 个 GAP，格子间距 GAP。
+     * 底格层与方块层共用同一公式，两图层必然重合。
      */
     public static double cellX(int col, double cellSize) {
         return GAP + col * (cellSize + GAP);
@@ -44,9 +44,22 @@ public final class BoardLayout {
     /**
      * 由规模与格宽反推棋盘边长：(N+1)×GAP + N×cellSize，
      * 与 cellSize 公式互逆（boardSize = min(宽,高) - 2×PADDING）。
-     * 用于设置方块层/底板尺寸，保证两图层完全重合。
+     * 用于设置方块层/底格层尺寸，保证两图层完全重合。
      */
     public static double boardSide(int n, double cellSize) {
         return (n + 1) * GAP + n * cellSize;
+    }
+
+    /**
+     * 棋盘内容在（被 StackPane 拉伸的）容器层内的水平偏移，用于居中：
+     * (层所在区域宽 − 棋盘边长) / 2，最小为 0（棋盘大于层时贴边不越界）。
+     */
+    public static double boardX(double layerWidth, double boardSide) {
+        return Math.max(0, (layerWidth - boardSide) / 2);
+    }
+
+    /** 垂直方向的居中偏移，同 {@link #boardX}。 */
+    public static double boardY(double layerHeight, double boardSide) {
+        return Math.max(0, (layerHeight - boardSide) / 2);
     }
 }

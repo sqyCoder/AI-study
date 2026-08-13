@@ -27,13 +27,13 @@ import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.ParallelTransition;
+import javafx.animation.PauseTransition;
 import javafx.animation.ScaleTransition;
 import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -42,7 +42,6 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -76,7 +75,9 @@ public class GameController implements Initializable {
     @FXML
     private StackPane boardArea;
     @FXML
-    private GridPane boardGrid;
+    private StackPane glassCard;
+    @FXML
+    private Pane cellLayer;
     @FXML
     private Pane tileLayer;
     @FXML
@@ -389,19 +390,20 @@ public class GameController implements Initializable {
         }
         double board = BoardLayout.boardSide(n, cell);
 
-        // 底板：N×N 空位色块（GridPane 自动定位，padding 与方块层公式一致）
-        boardGrid.getChildren().clear();
-        boardGrid.setPadding(new Insets(BoardLayout.GAP));
-        boardGrid.setHgap(BoardLayout.GAP);
-        boardGrid.setVgap(BoardLayout.GAP);
+        // 底格层：N×N 空位色块，与方块层同一坐标公式绝对定位（居中偏移同源，杜绝错位）
+        cellLayer.getChildren().clear();
         for (int r = 0; r < n; r++) {
             for (int c = 0; c < n; c++) {
                 StackPane cellPane = new StackPane();
                 cellPane.getStyleClass().add("cell");
                 cellPane.setPrefSize(cell, cell);
-                boardGrid.add(cellPane, c, r);
+                cellPane.setUserData(new int[]{r, c});
+                cellPane.setLayoutX(boardOffsetX(cell) + BoardLayout.cellX(c, cell));
+                cellPane.setLayoutY(boardOffsetY(cell) + BoardLayout.cellY(r, cell));
+                cellLayer.getChildren().add(cellPane);
             }
         }
+        cellLayer.setPrefSize(board, board);
 
         // 方块层：非零块按引擎局面绝对定位
         for (Node node : tileLayer.getChildren()) {
@@ -418,8 +420,8 @@ public class GameController implements Initializable {
                 }
                 StackPane tile = TileViewFactory.createTile(grid[r][c].value(), cell);
                 tile.setUserData(new int[]{r, c});
-                tile.setLayoutX(BoardLayout.cellX(c, cell));
-                tile.setLayoutY(BoardLayout.cellY(r, cell));
+                tile.setLayoutX(boardOffsetX(cell) + BoardLayout.cellX(c, cell));
+                tile.setLayoutY(boardOffsetY(cell) + BoardLayout.cellY(r, cell));
                 tileLayer.getChildren().add(tile);
             }
         }
@@ -450,8 +452,11 @@ public class GameController implements Initializable {
             renderBoard();
             return;
         }
-        // 仅重排：底板格子缩放 + 方块移动/缩放/字号（动画节点 translate 归零后同步）
-        for (Node node : boardGrid.getChildren()) {
+        // 仅重排：底格缩放移动 + 方块移动/缩放/字号（动画节点 translate 归零后同步）
+        for (Node node : cellLayer.getChildren()) {
+            int[] rc = (int[]) node.getUserData();
+            node.setLayoutX(boardOffsetX(cell) + BoardLayout.cellX(rc[1], cell));
+            node.setLayoutY(boardOffsetY(cell) + BoardLayout.cellY(rc[0], cell));
             ((Region) node).setPrefSize(cell, cell);
         }
         Tile[][] grid = engine.getGrid();
@@ -461,8 +466,8 @@ public class GameController implements Initializable {
                 continue;
             }
             TileViewFactory.restyleTile((StackPane) node, grid[rc[0]][rc[1]].value(), cell);
-            node.setLayoutX(BoardLayout.cellX(rc[1], cell));
-            node.setLayoutY(BoardLayout.cellY(rc[0], cell));
+            node.setLayoutX(boardOffsetX(cell) + BoardLayout.cellX(rc[1], cell));
+            node.setLayoutY(boardOffsetY(cell) + BoardLayout.cellY(rc[0], cell));
             node.setTranslateX(0);
             node.setTranslateY(0);
         }
@@ -567,10 +572,10 @@ public class GameController implements Initializable {
             if (node == null) {
                 continue; // 节点缺失：由结束后的校正兜底
             }
-            double fromX = BoardLayout.cellX(m.fromCol(), cell);
-            double fromY = BoardLayout.cellY(m.fromRow(), cell);
-            double toX = BoardLayout.cellX(m.toCol(), cell);
-            double toY = BoardLayout.cellY(m.toRow(), cell);
+            double fromX = boardOffsetX(cell) + BoardLayout.cellX(m.fromCol(), cell);
+            double fromY = boardOffsetY(cell) + BoardLayout.cellY(m.fromRow(), cell);
+            double toX = boardOffsetX(cell) + BoardLayout.cellX(m.toCol(), cell);
+            double toY = boardOffsetY(cell) + BoardLayout.cellY(m.toRow(), cell);
             // 先落到目标格（最终态），再以 translate 反向补差形成滑移
             node.setLayoutX(toX);
             node.setLayoutY(toY);
@@ -602,8 +607,8 @@ public class GameController implements Initializable {
             removeTilesAt(rc[0], rc[1]);
             StackPane merged = TileViewFactory.createTile(e.getValue(), cell);
             merged.setUserData(rc);
-            merged.setLayoutX(BoardLayout.cellX(rc[1], cell));
-            merged.setLayoutY(BoardLayout.cellY(rc[0], cell));
+            merged.setLayoutX(boardOffsetX(cell) + BoardLayout.cellX(rc[1], cell));
+            merged.setLayoutY(boardOffsetY(cell) + BoardLayout.cellY(rc[0], cell));
             tileLayer.getChildren().add(merged);
             // 合并爆点 + 飘字（spec2 §4.4）：爆点粒子与 "+N" 飘字并行于弹出动画
             double cx = merged.getLayoutX() + cell / 2;
@@ -628,8 +633,8 @@ public class GameController implements Initializable {
             TileSpawn s = result.spawned();
             StackPane spawn = TileViewFactory.createTile(s.value(), cell);
             spawn.setUserData(new int[]{s.row(), s.col()});
-            spawn.setLayoutX(BoardLayout.cellX(s.col(), cell));
-            spawn.setLayoutY(BoardLayout.cellY(s.row(), cell));
+            spawn.setLayoutX(boardOffsetX(cell) + BoardLayout.cellX(s.col(), cell));
+            spawn.setLayoutY(boardOffsetY(cell) + BoardLayout.cellY(s.row(), cell));
             spawn.setOpacity(0);
             spawn.setScaleX(0.5);
             spawn.setScaleY(0.5);
@@ -706,8 +711,8 @@ public class GameController implements Initializable {
                 } else {
                     TileViewFactory.restyleTile(node, grid[r][c].value(), cell);
                 }
-                node.setLayoutX(BoardLayout.cellX(c, cell));
-                node.setLayoutY(BoardLayout.cellY(r, cell));
+                node.setLayoutX(boardOffsetX(cell) + BoardLayout.cellX(c, cell));
+                node.setLayoutY(boardOffsetY(cell) + BoardLayout.cellY(r, cell));
                 node.setTranslateX(0);
                 node.setTranslateY(0);
                 node.setOpacity(1);
@@ -724,6 +729,20 @@ public class GameController implements Initializable {
 
     private double currentCellSize() {
         return BoardLayout.cellSize(boardArea.getWidth(), boardArea.getHeight(), engine.getSize());
+    }
+
+    /**
+     * 棋盘内容在方块层内的水平居中偏移。
+     * 以 boardArea 为基准：监听器回调触发时其宽高即为最终值（确定无竞态），
+     * 而 tileLayer 的实时尺寸在布局脉冲中会读到中间值，导致一次性错位。
+     */
+    private double boardOffsetX(double cell) {
+        return BoardLayout.boardX(boardArea.getWidth(), BoardLayout.boardSide(engine.getSize(), cell));
+    }
+
+    /** 垂直居中偏移，同 {@link #boardOffsetX}。 */
+    private double boardOffsetY(double cell) {
+        return BoardLayout.boardY(boardArea.getHeight(), BoardLayout.boardSide(engine.getSize(), cell));
     }
 
     /** 按节点 userData 坐标索引现有方块。 */

@@ -56,6 +56,16 @@ class BoardLayoutTest {
     }
 
     @Test
+    void 棋盘内容在拉伸层内居中偏移() {
+        // 层 566×456、棋盘 429×429：水平 (566-429)/2=68.5，垂直 (456-429)/2=13.5
+        assertEquals(68.5, BoardLayout.boardX(566, 429), 1e-9);
+        assertEquals(13.5, BoardLayout.boardY(456, 429), 1e-9);
+        // 棋盘大于层时不越界：偏移取 0（贴边）
+        assertEquals(0, BoardLayout.boardX(300, 429), 1e-9);
+        assertEquals(0, BoardLayout.boardY(300, 429), 1e-9);
+    }
+
+    @Test
     void 小窗口下格宽仍为正() {
         // min 窗口 480×620 → 棋盘区 ~456×~500 → 8×8 格宽应 > 0
         double cell = BoardLayout.cellSize(456, 500, 8);
