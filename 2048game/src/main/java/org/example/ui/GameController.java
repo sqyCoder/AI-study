@@ -1,7 +1,9 @@
 package org.example.ui;
 
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,6 +12,7 @@ import java.util.prefs.Preferences;
 
 import org.example.game.Direction;
 import org.example.game.GameEngine;
+import org.example.game.HistoryEntry;
 import org.example.game.MoveResult;
 import org.example.game.ScoreStore;
 import org.example.game.Tile;
@@ -17,6 +20,7 @@ import org.example.game.TileMove;
 import org.example.game.TileSpawn;
 
 import javafx.animation.Animation;
+import javafx.animation.AnimationTimer;
 import javafx.animation.FadeTransition;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
@@ -47,10 +51,10 @@ import javafx.util.Duration;
 
 /**
  * 主控制器（spec §4.3.3）：渲染、设置栏（尺寸/主题/语言/音效/撤销/统计）、
- * 无动画的纯逻辑驱动重绘。
+ * 计时、三态遮罩（失败/胜利/统计）、动画驱动的无动作重绘。
  * <p>
  * M3 范围：开局渲染、设置开关即时生效、窗口拉伸只重排不重建；
- * 键盘输入与动画在 M4 / M5 接入；遮罩内容与计时在 M6 完善。
+ * 键盘与动画在 M4 / M5 接入；遮罩内容、计时与榜单在 M6 完善。
  */
 public class GameController implements Initializable {
 
@@ -106,6 +110,29 @@ public class GameController implements Initializable {
     private Label statsStepsLabel;
     @FXML
     private Label statsTimeLabel;
+    @FXML
+    private Label historyCaptionLabel;
+    @FXML
+    private VBox statsHistoryBox;
+
+    @FXML
+    private VBox gameOverBox;
+    @FXML
+    private Label gameOverTitleLabel;
+    @FXML
+    private Label gameOverScoreLabel;
+    @FXML
+    private Button tryAgainButton;
+    @FXML
+    private VBox winBox;
+    @FXML
+    private Label winTitleLabel;
+    @FXML
+    private Label winScoreLabel;
+    @FXML
+    private Button keepGoingButton;
+    @FXML
+    private VBox statsBox;
 
     @FXML
     private ComboBox<Integer> sizeBox;
@@ -141,6 +168,26 @@ public class GameController implements Initializable {
     /** 动画进行中：屏蔽新输入，保证逻辑与画面一致（spec NFR-3，防快速连按错乱）。 */
     private boolean animationLock;
 
+    /** 已累计计时（暂停时保留；撤销回空棋盘 / 新开局清零）。 */
+    private long elapsedMillis;
+    /** 当前计时段的起始时刻（nanoTime）。 */
+    private long segmentStartNanos;
+    /** 计时是否运行中。 */
+    private boolean timerRunning;
+
+    /** 计时驱动：每秒刷新一次 timeLabel（spec §4.6：首步有效移动启动）。 */
+    private final AnimationTimer timer = new AnimationTimer() {
+        private long lastRefresh = -1;
+
+        @Override
+        public void handle(long nowNanos) {
+            if (lastRefresh < 0 || nowNanos - lastRefresh >= 1_000_000_000L) {
+                lastRefresh = nowNanos;
+                updateTimeLabel();
+            }
+        }
+    };
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         engine = new GameEngine(GameEngine.MIN_SIZE + 1); // 默认 4×4
@@ -162,6 +209,11 @@ public class GameController implements Initializable {
         i18n.bind(timeCaptionLabel, "time");
         i18n.bind(sizeHintLabel, "boardSizeHint");
         i18n.bind(statsTitleLabel, "stats");
+        i18n.bind(historyCaptionLabel, "history");
+        i18n.bind(gameOverTitleLabel, "gameOver.title");
+        i18n.bind(winTitleLabel, "win.title");
+        i18n.bind(tryAgainButton, "gameOver.tryAgain");
+        i18n.bind(keepGoingButton, "win.keepGoing");
 
         // 语言切换时需按当前主题/音效状态重刷按钮文本与数值
         i18n.addRefreshCallback(this::refreshStateTexts);
@@ -207,10 +259,23 @@ public class GameController implements Initializable {
             root.requestFocus();
         });
         closeStatsButton.setOnAction(e -> hideOverlay());
+        // 遮罩空白点击：仅统计面板可点灭；失败/胜利遮罩必须走按钮（防止误关后方向键失效）
         overlay.setOnMouseClicked(e -> {
-            if (e.getTarget() == overlay) {
+            if (e.getTarget() == overlay && statsBox.isVisible()) {
                 hideOverlay();
             }
+        });
+        tryAgainButton.setOnAction(e -> {
+            startNewGame(engine.getSize());
+            sound.playClick();
+            root.requestFocus();
+        });
+        keepGoingButton.setOnAction(e -> {
+            engine.continueAfterWin();
+            hideOverlay();
+            startTimer(); // 继续游戏：恢复计时
+            sound.playClick();
+            root.requestFocus();
         });
         upButton.setOnAction(e -> handleMove(Direction.UP));
         downButton.setOnAction(e -> handleMove(Direction.DOWN));
@@ -385,8 +450,9 @@ public class GameController implements Initializable {
     // ==================== 交互 ====================
 
     /**
-     * 移动（方向按钮与键盘共用入口）。
-     * 动画期间屏蔽新输入（animationLock，spec NFR-3）；移动有效时走动画流程。
+     * 移动（方向按钮与键盘共用入口，spec §4.3.3）。
+     * 动画期间屏蔽新输入（animationLock，NFR-3）；有效移动：首步启动计时、
+     * 播合并音、走动画流程；胜负判定在动画结束后处理（afterMove）。
      */
     private void handleMove(Direction dir) {
         if (animationLock) {
@@ -394,6 +460,9 @@ public class GameController implements Initializable {
         }
         MoveResult result = engine.move(dir);
         if (result.moved()) {
+            if (!timerRunning) {
+                startTimer(); // 第一步 / 撤销复活后的下一步 / 继续游戏后
+            }
             if (result.moves().isEmpty()) {
                 renderBoard(); // 防御兜底：无移动记录但引擎已变化
             } else {
@@ -406,19 +475,35 @@ public class GameController implements Initializable {
         root.requestFocus();
     }
 
+    /**
+     * 撤销（spec §4.3.3）：动画中忽略；成功后隐藏遮罩直接重建不播动画。
+     * 计时规则（§4.6）：撤销前已 game over/won（复活）→ 暂停计时；
+     * 撤销后棋盘为空（回到首步前）→ 计时复位清零。
+     */
     private void handleUndo() {
-        if (engine.undo() == null) {
+        if (animationLock) {
             return;
+        }
+        var undo = engine.undo();
+        if (undo == null) {
+            return;
+        }
+        if (undo.revived()) {
+            stopTimer();
         }
         hideOverlay();
         renderBoard();
+        if (countNonZero() == 0) {
+            resetTimer();
+        }
         sound.playClick();
     }
 
-    /** 新开局 / 切换尺寸：重置引擎并重绘。 */
+    /** 新开局 / 切换尺寸：重置引擎、隐藏遮罩、计时复位清零并重绘。 */
     private void startNewGame(int size) {
         engine.startNewGame(size);
         sizeBox.setValue(size);
+        resetTimer();
         hideOverlay();
         renderBoard();
     }
@@ -517,12 +602,30 @@ public class GameController implements Initializable {
         }
 
         ParallelTransition all = new ParallelTransition(fx.toArray(new Animation[0]));
-        all.setOnFinished(e -> {
-            // 动画结束：与引擎做一致性校正（补齐/移除/校正），确保画面与逻辑完全一致
-            syncBoardWithEngine();
-            animationLock = false;
-        });
+        all.setOnFinished(e -> afterMove(result));
         all.play();
+    }
+
+    /**
+     * 动画收尾（spec §4.3.3 步骤 5-8）：与引擎一致性校正、解锁，并按结果弹遮罩：
+     * winReached → 胜利遮罩（含"继续游戏"）；gameOver → 榜单结算 + 失败遮罩；计时暂停。
+     */
+    private void afterMove(MoveResult result) {
+        syncBoardWithEngine();
+        animationLock = false;
+        if (result.winReached()) {
+            stopTimer();
+            sound.playWin();
+            winScoreLabel.setText(i18n.t("score") + ": " + engine.getScore());
+            showPanel(winBox);
+        } else if (result.gameOver()) {
+            stopTimer();
+            scoreStore.reportGameOver(engine.getScore(), engine.getSize());
+            sound.playGameOver();
+            updateLabels(); // best 可能已被榜单刷新
+            gameOverScoreLabel.setText(i18n.t("score") + ": " + engine.getScore());
+            showPanel(gameOverBox);
+        }
     }
 
     /** 一致性校正：tileLayer 与引擎网格逐格对齐（防御动画残留/缺失，spec M5 验收）。 */
@@ -614,19 +717,83 @@ public class GameController implements Initializable {
 
     private void showStatsPanel() {
         updateStatsPanel();
-        overlay.setVisible(true);
-        overlay.toFront();
+        showPanel(statsBox);
     }
 
+    /** 统计面板：本局四项 + 历史 Top5（"分数 × 尺寸 · 日期"，spec §4.1.8）。 */
     private void updateStatsPanel() {
         statsScoreLabel.setText(i18n.t("score") + ": " + engine.getScore());
         statsBestLabel.setText(i18n.t("best") + ": " + scoreStore.loadBestScore());
         statsStepsLabel.setText(i18n.t("steps") + ": " + engine.getSteps());
         statsTimeLabel.setText(i18n.t("time") + ": " + timeLabel.getText());
+        statsHistoryBox.getChildren().clear();
+        for (HistoryEntry h : scoreStore.loadHistory()) {
+            Label line = new Label(h.score() + " × " + h.size() + " · " + formatDate(h.date()));
+            line.getStyleClass().add("history-entry");
+            statsHistoryBox.getChildren().add(line);
+        }
+    }
+
+    /** 三态遮罩轮换：显示指定面板，其余隐藏（spec §4.3.3 遮罩）。 */
+    private void showPanel(Node box) {
+        for (Node n : overlay.getChildren()) {
+            n.setVisible(n == box);
+        }
+        overlay.setVisible(true);
+        overlay.toFront();
     }
 
     private void hideOverlay() {
         overlay.setVisible(false);
+    }
+
+    // ==================== 计时（spec §4.6） ====================
+
+    /** 启动/恢复计时（幂等）。 */
+    private void startTimer() {
+        if (timerRunning) {
+            return;
+        }
+        timerRunning = true;
+        segmentStartNanos = System.nanoTime();
+        timer.start();
+        updateTimeLabel();
+    }
+
+    /** 暂停计时并结算累计（win / game over 遮罩弹出时）。 */
+    private void stopTimer() {
+        if (!timerRunning) {
+            return;
+        }
+        elapsedMillis += (System.nanoTime() - segmentStartNanos) / 1_000_000;
+        timerRunning = false;
+        timer.stop();
+        updateTimeLabel();
+    }
+
+    /** 复位计时为零（新开局 / 切尺寸 / 撤销回空棋盘）。 */
+    private void resetTimer() {
+        timerRunning = false;
+        elapsedMillis = 0;
+        timer.stop();
+        timeLabel.setText("00:00");
+    }
+
+    private void updateTimeLabel() {
+        long ms = elapsedMillis;
+        if (timerRunning) {
+            ms += (System.nanoTime() - segmentStartNanos) / 1_000_000;
+        }
+        timeLabel.setText(formatTime(ms));
+    }
+
+    private static String formatTime(long millis) {
+        long totalSec = millis / 1000;
+        return String.format("%02d:%02d", totalSec / 60, totalSec % 60);
+    }
+
+    private static String formatDate(long epochMillis) {
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date(epochMillis));
     }
 
     // ==================== 文案与状态刷新 ====================
@@ -636,6 +803,11 @@ public class GameController implements Initializable {
         updateButtons();
         updateLabels();
         if (overlay.isVisible()) {
+            if (winBox.isVisible()) {
+                winScoreLabel.setText(i18n.t("score") + ": " + engine.getScore());
+            } else if (gameOverBox.isVisible()) {
+                gameOverScoreLabel.setText(i18n.t("score") + ": " + engine.getScore());
+            }
             updateStatsPanel();
         }
         if (stage != null) {

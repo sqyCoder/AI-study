@@ -7,6 +7,7 @@
     -cell-bg: #cdc1b4;
     -text-main: #776e65;
     -text-light: #f9f6f2;
+    -text-dim: #998f87;
     -score-bg: #bbada0;
     -button-bg: #8f7a66;
     -overlay-bg: rgba(238, 228, 218, 0.73);
@@ -157,5 +158,22 @@
 
 .panel-box .label {
     -fx-font-size: 15px;
+    -fx-text-fill: -text-main;
+}
+
+.panel-score {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-main;
+}
+
+.history-caption {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-dim;
+}
+
+.history-entry {
+    -fx-font-size: 13px;
     -fx-text-fill: -text-main;
 }

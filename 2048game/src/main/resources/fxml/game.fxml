@@ -64,14 +64,29 @@
             <GridPane fx:id="boardGrid"/>
             <!-- 方块层：绝对定位，动画容器（M5 起播放动画） -->
             <Pane fx:id="tileLayer"/>
-            <!-- 三态遮罩：GameOverBox / WinBox / StatsBox 轮换（M6 完善遮罩内容） -->
+            <!-- 三态遮罩：GameOverBox / WinBox / StatsBox 轮换（spec §4.3.3，M6 接入） -->
             <StackPane fx:id="overlay" styleClass="overlay" visible="false">
-                <VBox fx:id="statsBox" styleClass="panel-box" spacing="10" alignment="CENTER">
+                <!-- 失败遮罩：再来一局 -->
+                <VBox fx:id="gameOverBox" styleClass="panel-box" spacing="12" alignment="CENTER" visible="false">
+                    <Label fx:id="gameOverTitleLabel" styleClass="panel-title"/>
+                    <Label fx:id="gameOverScoreLabel" styleClass="panel-score"/>
+                    <Button fx:id="tryAgainButton" styleClass="app-button"/>
+                </VBox>
+                <!-- 胜利遮罩：继续游戏 -->
+                <VBox fx:id="winBox" styleClass="panel-box" spacing="12" alignment="CENTER" visible="false">
+                    <Label fx:id="winTitleLabel" styleClass="panel-title"/>
+                    <Label fx:id="winScoreLabel" styleClass="panel-score"/>
+                    <Button fx:id="keepGoingButton" styleClass="app-button"/>
+                </VBox>
+                <!-- 统计面板：本局四项 + 历史 Top5 -->
+                <VBox fx:id="statsBox" styleClass="panel-box" spacing="10" alignment="CENTER" visible="false">
                     <Label fx:id="statsTitleLabel" styleClass="panel-title"/>
                     <Label fx:id="statsScoreLabel"/>
                     <Label fx:id="statsBestLabel"/>
                     <Label fx:id="statsStepsLabel"/>
                     <Label fx:id="statsTimeLabel"/>
+                    <Label fx:id="historyCaptionLabel" styleClass="history-caption"/>
+                    <VBox fx:id="statsHistoryBox" spacing="2" alignment="CENTER"/>
                     <Button fx:id="closeStatsButton" styleClass="app-button"/>
                 </VBox>
             </StackPane>
