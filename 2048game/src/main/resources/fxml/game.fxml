@@ -1,30 +1,88 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<!-- 2048 主界面（spec §4.3.1；M1 先建立骨架，后续里程碑逐步补齐标题栏/设置栏/方向键盘区/遮罩层） -->
-<BorderPane id="root" styleClass="root-pane"
+<!-- 2048 主界面（spec §4.3.1）：
+     top=标题栏+设置栏；center=棋盘（底板 GridPane + 方块层 Pane + 三态遮罩）；
+     bottom=方向键盘区。M3 起全量布局，功能事件由 GameController 绑定。 -->
+<BorderPane fx:id="root" styleClass="root-pane"
             xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.ui.GameController">
     <padding>
         <Insets top="12" right="12" bottom="12" left="12"/>
     </padding>
     <top>
-        <VBox spacing="10">
-            <HBox spacing="12" alignment="CENTER_LEFT">
-                <Label text="2048" styleClass="app-title"/>
-                <Label fx:id="scoreBarLabel" styleClass="score-bar" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+        <VBox spacing="8">
+            <!-- 标题栏：标题 + 分数/最佳/步数/用时 + 新游戏 -->
+            <HBox spacing="8" alignment="CENTER_LEFT">
+                <Label fx:id="titleLabel" styleClass="app-title" text="2048"/>
+                <Region HBox.hgrow="ALWAYS" minWidth="4"/>
+                <VBox styleClass="score-box" alignment="CENTER" spacing="2">
+                    <Label fx:id="scoreCaptionLabel" styleClass="score-caption"/>
+                    <Label fx:id="scoreLabel" styleClass="score-value" text="0"/>
+                </VBox>
+                <VBox styleClass="score-box" alignment="CENTER" spacing="2">
+                    <Label fx:id="bestCaptionLabel" styleClass="score-caption"/>
+                    <Label fx:id="bestLabel" styleClass="score-value" text="0"/>
+                </VBox>
+                <VBox styleClass="score-box" alignment="CENTER" spacing="2">
+                    <Label fx:id="stepsCaptionLabel" styleClass="score-caption"/>
+                    <Label fx:id="stepsLabel" styleClass="score-value" text="0"/>
+                </VBox>
+                <VBox styleClass="score-box" alignment="CENTER" spacing="2">
+                    <Label fx:id="timeCaptionLabel" styleClass="score-caption"/>
+                    <Label fx:id="timeLabel" styleClass="score-value" text="00:00"/>
+                </VBox>
+                <Button fx:id="newGameButton" styleClass="app-button"/>
             </HBox>
+            <!-- 设置栏：尺寸 / 主题 / 语言 / 音效 / 撤销 / 统计 -->
+            <FlowPane hgap="6" vgap="6" alignment="CENTER">
+                <ComboBox fx:id="sizeBox" prefWidth="90"/>
+                <Label fx:id="sizeHintLabel" styleClass="hint-label"/>
+                <Button fx:id="themeButton" styleClass="app-button"/>
+                <Button fx:id="langButton" styleClass="app-button"/>
+                <Button fx:id="soundButton" styleClass="app-button"/>
+                <Button fx:id="undoButton" styleClass="app-button"/>
+                <Button fx:id="statsButton" styleClass="app-button"/>
+            </FlowPane>
         </VBox>
     </top>
     <center>
-        <StackPane fx:id="boardArea" styleClass="board-area" alignment="CENTER">
-            <StackPane fx:id="boardPane" styleClass="board"/>
+        <StackPane fx:id="boardArea" alignment="CENTER">
+            <!-- 底板：N×N 空位色块，按尺寸重建 -->
+            <GridPane fx:id="boardGrid"/>
+            <!-- 方块层：绝对定位，动画容器（M5 起播放动画） -->
+            <Pane fx:id="tileLayer"/>
+            <!-- 三态遮罩：GameOverBox / WinBox / StatsBox 轮换（M6 完善遮罩内容） -->
+            <StackPane fx:id="overlay" styleClass="overlay" visible="false">
+                <VBox fx:id="statsBox" styleClass="panel-box" spacing="10" alignment="CENTER">
+                    <Label fx:id="statsTitleLabel" styleClass="panel-title"/>
+                    <Label fx:id="statsScoreLabel"/>
+                    <Label fx:id="statsBestLabel"/>
+                    <Label fx:id="statsStepsLabel"/>
+                    <Label fx:id="statsTimeLabel"/>
+                    <Button fx:id="closeStatsButton" styleClass="app-button"/>
+                </VBox>
+            </StackPane>
         </StackPane>
     </center>
+    <bottom>
+        <HBox spacing="8" alignment="CENTER">
+            <Button fx:id="upButton" styleClass="dpad-button" text="↑"/>
+            <Button fx:id="downButton" styleClass="dpad-button" text="↓"/>
+            <Button fx:id="leftButton" styleClass="dpad-button" text="←"/>
+            <Button fx:id="rightButton" styleClass="dpad-button" text="→"/>
+        </HBox>
+    </bottom>
 </BorderPane>

@@ -1,35 +1,32 @@
-/* ============ 浅色主题（经典 2048 配色，spec §4.4） ============
-   所有颜色通过 .root 上的 lookup 变量定义，game-dark.css 同构仅换值。 */
+/* ============ 暗黑主题（spec §4.4，与 game-light.css 同构，仅换色值） ============ */
 
 .root {
-    -board-bg: #faf8ef;
-    -board-panel: #bbada0;
-    -cell-bg: #cdc1b4;
-    -text-main: #776e65;
-    -text-light: #f9f6f2;
-    -score-bg: #bbada0;
-    -button-bg: #8f7a66;
-    -overlay-bg: rgba(238, 228, 218, 0.73);
-    -panel-bg: #faf8ef;
-    -tile-2-bg: #eee4da;   -tile-2-text: #776e65;
-    -tile-4-bg: #ede0c8;   -tile-4-text: #776e65;
-    -tile-8-bg: #f2b179;   -tile-8-text: #f9f6f2;
-    -tile-16-bg: #f59563;  -tile-16-text: #f9f6f2;
-    -tile-32-bg: #f67c5f;  -tile-32-text: #f9f6f2;
-    -tile-64-bg: #f65e3b;  -tile-64-text: #f9f6f2;
-    -tile-128-bg: #edcf72; -tile-128-text: #f9f6f2;
-    -tile-256-bg: #edcc61; -tile-256-text: #f9f6f2;
-    -tile-512-bg: #edc850; -tile-512-text: #f9f6f2;
-    -tile-1024-bg: #edc53f; -tile-1024-text: #f9f6f2;
-    -tile-2048-bg: #edc22e; -tile-2048-text: #f9f6f2;
-    -tile-super-bg: #3c3a32; -tile-super-text: #f9f6f2;
+    -board-bg: #1a1c22;
+    -board-panel: #23262e;
+    -cell-bg: #2e3138;
+    -text-main: #e8e8e8;
+    -text-light: #f5f5f5;
+    -score-bg: #2e3138;
+    -button-bg: #3a3e4a;
+    -overlay-bg: rgba(26, 28, 34, 0.78);
+    -panel-bg: #23262e;
+    -tile-2-bg: #41444f;    -tile-2-text: #e8e8e8;
+    -tile-4-bg: #565a66;    -tile-4-text: #f5f5f5;
+    -tile-8-bg: #b07a3f;    -tile-8-text: #f5f5f5;
+    -tile-16-bg: #b0643a;   -tile-16-text: #f5f5f5;
+    -tile-32-bg: #b04936;   -tile-32-text: #f5f5f5;
+    -tile-64-bg: #b03a2c;   -tile-64-text: #f5f5f5;
+    -tile-128-bg: #b09a2e;  -tile-128-text: #1a1c22;
+    -tile-256-bg: #c2a81f;  -tile-256-text: #1a1c22;
+    -tile-512-bg: #d4b612;  -tile-512-text: #1a1c22;
+    -tile-1024-bg: #e6c400; -tile-1024-text: #1a1c22;
+    -tile-2048-bg: #f2cc0a; -tile-2048-text: #1a1c22;
+    -tile-super-bg: #e8e8e8; -tile-super-text: #1a1c22;
 }
 
 .root-pane {
     -fx-background-color: -board-bg;
 }
-
-/* ============ 标题与分数框 ============ */
 
 .app-title {
     -fx-font-size: 36px;
@@ -60,8 +57,6 @@
     -fx-text-fill: -text-main;
 }
 
-/* ============ 按钮 ============ */
-
 .app-button {
     -fx-background-color: -button-bg;
     -fx-text-fill: -text-light;
@@ -87,8 +82,6 @@
     -fx-background-radius: 6;
     -fx-cursor: hand;
 }
-
-/* ============ 棋盘 ============ */
 
 .board-area {
     -fx-alignment: center;
@@ -135,8 +128,6 @@
 .tile-2048  { -fx-background-color: -tile-2048-bg; }
 .tile-super { -fx-background-color: -tile-super-bg; }
 
-/* ============ 遮罩与面板 ============ */
-
 .overlay {
     -fx-background-color: -overlay-bg;
     -fx-alignment: center;
@@ -146,7 +137,7 @@
     -fx-background-color: -panel-bg;
     -fx-background-radius: 8;
     -fx-padding: 20 28 20 28;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 12, 0.2, 0, 3);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 12, 0.2, 0, 3);
 }
 
 .panel-title {
