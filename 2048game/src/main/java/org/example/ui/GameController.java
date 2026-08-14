@@ -126,15 +126,25 @@ public class GameController implements Initializable {
     @FXML
     private Label gameOverScoreLabel;
     @FXML
+    private Label gameOverNewBestLabel;
+    @FXML
+    private Label gameOverSubtitleLabel;
+    @FXML
     private Button tryAgainButton;
     @FXML
     private VBox winBox;
     @FXML
     private Label winTitleLabel;
     @FXML
+    private Label winSubtitleLabel;
+    @FXML
     private Label winScoreLabel;
     @FXML
     private Button keepGoingButton;
+    @FXML
+    private Button winNewGameButton;
+    @FXML
+    private Button winBackMenuButton;
     @FXML
     private VBox statsBox;
 
@@ -162,6 +172,10 @@ public class GameController implements Initializable {
     private Button leftButton;
     @FXML
     private Button rightButton;
+    @FXML
+    private Button backButton;
+    @FXML
+    private Label authorLabel;
 
     private GameEngine engine;
     private final ScoreStore scoreStore = new ScoreStore();
@@ -170,6 +184,10 @@ public class GameController implements Initializable {
     private SoundPlayer sound;
     private GlowBackground glow;
     private Stage stage;
+    /** 主菜单传入的初始棋盘尺寸（null 表示不覆盖，维持默认 4×4）。 */
+    private Integer initialSize;
+    /** 返回主菜单回调（由 App 注入；null 时隐藏返回按钮）。 */
+    private Runnable onBackToMenu;
     /** 动画进行中：屏蔽新输入，保证逻辑与画面一致（spec NFR-3，防快速连按错乱）。 */
     private boolean animationLock;
 
@@ -219,9 +237,14 @@ public class GameController implements Initializable {
         i18n.bind(statsTitleLabel, "stats");
         i18n.bind(historyCaptionLabel, "history");
         i18n.bind(gameOverTitleLabel, "gameOver.title");
+        i18n.bind(gameOverSubtitleLabel, "gameOver.subtitle");
         i18n.bind(winTitleLabel, "win.title");
+        i18n.bind(winSubtitleLabel, "win.subtitle");
         i18n.bind(tryAgainButton, "gameOver.tryAgain");
         i18n.bind(keepGoingButton, "win.keepGoing");
+        i18n.bind(winNewGameButton, "win.newGame");
+        i18n.bind(winBackMenuButton, "win.backMenu");
+        i18n.bind(authorLabel, "author");
         i18n.bind(newGameButton, "newGame");
         i18n.bind(undoButton, "undo");
         i18n.bind(statsButton, "stats");
@@ -290,6 +313,13 @@ public class GameController implements Initializable {
             sound.playClick();
             root.requestFocus();
         });
+        winNewGameButton.setOnAction(e -> {
+            startNewGame(engine.getSize());
+            sound.playClick();
+            root.requestFocus();
+        });
+        winBackMenuButton.setOnAction(e -> backToMenu());
+        backButton.setOnAction(e -> backToMenu());
         upButton.setOnAction(e -> {
             sound.playClick();
             handleMove(Direction.UP);
@@ -323,12 +353,39 @@ public class GameController implements Initializable {
         this.stage = stage;
         FontKit.load(); // 注册内置 MiSans 字体（失败静默回退，spec2 §6）
         theme.apply(stage.getScene());
+        if (initialSize != null) {
+            startNewGame(initialSize); // 主菜单选定尺寸开局（spec3 §二）
+        }
         i18n.setLang(i18n.getLang());
         stage.setTitle(i18n.t("app.title"));
         // 键盘监听放 Scene 过滤器（spec §4.3.3/§5 焦点对策）：
         // 无论焦点在哪个控件，方向键/WASD/R/Z 均直达，不会被按钮/ComboBox 吞掉。
         stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, this::onKeyPressed);
+        backButton.setVisible(onBackToMenu != null);
+        backButton.setManaged(onBackToMenu != null);
         root.requestFocus();
+    }
+
+    /**
+     * 注入主菜单选定的棋盘尺寸（须在 attach 之前调用，spec3 §二）。
+     * 首局面在 attach 中按该尺寸开局，其余行为与默认一致。
+     */
+    public void setInitialSize(int size) {
+        this.initialSize = size;
+    }
+
+    /** 注入"返回主菜单"回调（null 则隐藏返回按钮，spec3 §二）。 */
+    public void setOnBackToMenu(Runnable callback) {
+        this.onBackToMenu = callback;
+    }
+
+    /** 返回主菜单：暂停计时、停掉后台动画、触发回调（由 App 切换场景）。 */
+    private void backToMenu() {
+        stopTimer();
+        if (onBackToMenu != null) {
+            sound.playClick();
+            onBackToMenu.run();
+        }
     }
 
     // ==================== 键盘 ====================
@@ -666,18 +723,50 @@ public class GameController implements Initializable {
         animationLock = false;
         if (result.winReached()) {
             stopTimer();
-            sound.playWin();
+            sound.playVictory(); // 盛大胜利音效（spec3 §五）
             winScoreLabel.setText(i18n.t("score") + ": " + engine.getScore());
             showPanel(winBox);
-            EffectManager.confetti(confettiLayer, overlay.getWidth(), overlay.getHeight()); // 胜利彩带
+            // spec3 §五：大风量三波次全屏撒花（替代原 26 根单波）
+            EffectManager.confettiCelebration(confettiLayer, overlay.getWidth(), overlay.getHeight());
+            pulseScore(winScoreLabel); // 胜利分数放大脉冲
         } else if (result.gameOver()) {
             stopTimer();
+            int bestBefore = scoreStore.loadBestScore();
             scoreStore.reportGameOver(engine.getScore(), engine.getSize());
             sound.playGameOver();
             updateLabels(); // best 可能已被榜单刷新
             gameOverScoreLabel.setText(i18n.t("score") + ": " + engine.getScore());
+            // 超越最佳提示（spec3 §五：游戏结束同样加强反馈）
+            boolean newBest = engine.getScore() > 0 && engine.getScore() >= bestBefore;
+            gameOverNewBestLabel.setVisible(newBest);
+            gameOverNewBestLabel.setManaged(newBest);
+            if (newBest) {
+                gameOverNewBestLabel.setText(i18n.t("gameOver.newBest"));
+            }
             showPanel(gameOverBox);
         }
+    }
+
+    /**
+     * 分数放大脉冲（spec3 §五）：1.0→1.18→1.0 循环 3 次，突出"新纪录/胜利"的
+     * 视觉反馈；一次性 Timeline，播完自动结束，无节点/动画泄漏。
+     */
+    private void pulseScore(Label label) {
+        Timeline t = new Timeline();
+        for (int i = 0; i < 3; i++) {
+            t.getKeyFrames().addAll(
+                    new KeyFrame(Duration.millis(i * 200),
+                            new KeyValue(label.scaleXProperty(), 1.0),
+                            new KeyValue(label.scaleYProperty(), 1.0)),
+                    new KeyFrame(Duration.millis(i * 200 + 100),
+                            new KeyValue(label.scaleXProperty(), 1.18),
+                            new KeyValue(label.scaleYProperty(), 1.18)));
+        }
+        t.getKeyFrames().add(
+                new KeyFrame(Duration.millis(600),
+                        new KeyValue(label.scaleXProperty(), 1.0),
+                        new KeyValue(label.scaleYProperty(), 1.0)));
+        t.play();
     }
 
     /** 一致性校正：tileLayer 与引擎网格逐格对齐（防御动画残留/缺失，spec M5 验收）。 */
@@ -949,6 +1038,8 @@ public class GameController implements Initializable {
         statsButton.setTooltip(new Tooltip(i18n.t("stats")));
         undoButton.setGraphic(Icons.undo());
         undoButton.setTooltip(new Tooltip(i18n.t("undo")));
+        backButton.setGraphic(Icons.back());
+        backButton.setTooltip(new Tooltip(i18n.t("menu.back")));
         langButton.setText(I18n.LANG_ZH.equals(i18n.getLang()) ? "中" : "EN");
     }
 

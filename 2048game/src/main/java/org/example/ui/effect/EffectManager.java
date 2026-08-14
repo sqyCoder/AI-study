@@ -133,38 +133,77 @@ public final class EffectManager {
 
     // ==================== 胜利彩带 ====================
 
+    /** 彩带粒子形状（矩形 / 圆点混用，增强视觉层次）。 */
+    private static final boolean[] CONFETTI_SHAPES = {false, true, false, true, false};
+
     /**
      * 胜利彩带：26 根彩色小矩形自容器顶部旋转下落并渐隐，衬在胜利遮罩之后。
      *
      * @param parent 彩带容器（遮罩层内的独立 Pane，绝对坐标）
      */
     public static void confetti(Pane parent, double width, double height) {
+        confettiWave(parent, width, height, 26, 0);
+    }
+
+    /**
+     * 盛大胜利庆祝（spec3 §五）：三波次大风量撒花，混合矩形与圆点，
+     * 0ms 首发 70 片、500ms 追加 40 片、1000ms 尾部 30 片，最长飘落 ~2.6s。
+     * 与 {@link #confetti} 共用粒子行为，仅数量/波次/时长升级。
+     */
+    public static void confettiCelebration(Pane parent, double width, double height) {
+        confettiWave(parent, width, height, 70, 0);
+        confettiWave(parent, width, height, 40, 600);
+        confettiWave(parent, width, height, 30, 1200);
+    }
+
+    /**
+     * 单波次彩带：自容器顶部随机横向位置下落，附带旋转与水平漂移，
+     * 延迟指定毫秒后播放；每片结束时自动从父节点移除（防节点泄漏）。
+     */
+    private static void confettiWave(Pane parent, double width, double height, int count, long delayMs) {
         if (width <= 0 || height <= 0) {
             return;
         }
         Random rnd = new Random();
-        for (int i = 0; i < 26; i++) {
-            Rectangle r = new Rectangle(7 + rnd.nextDouble() * 5, 12 + rnd.nextDouble() * 6,
-                    CONFETTI_COLORS[rnd.nextInt(CONFETTI_COLORS.length)]);
-            r.setLayoutX(rnd.nextDouble() * width);
-            r.setLayoutY(-20 - rnd.nextDouble() * 50);
-            r.setRotate(rnd.nextDouble() * 360);
-            r.setArcWidth(2);
-            r.setArcHeight(2);
-            parent.getChildren().add(r);
-            double dur = 1400 + rnd.nextDouble() * 900;
-            TranslateTransition fall = new TranslateTransition(Duration.millis(dur), r);
+        for (int i = 0; i < count; i++) {
+            javafx.scene.Node piece = CONFETTI_SHAPES[i % CONFETTI_SHAPES.length]
+                    ? confettiDot(rnd) : confettiBar(rnd);
+            piece.setLayoutX(rnd.nextDouble() * width);
+            piece.setLayoutY(-20 - rnd.nextDouble() * 60);
+            piece.setRotate(rnd.nextDouble() * 360);
+            parent.getChildren().add(piece);
+            double dur = 1700 + rnd.nextDouble() * 900;
+            TranslateTransition fall = new TranslateTransition(Duration.millis(dur), piece);
             fall.setToY(height + 40);
             fall.setInterpolator(Interpolator.EASE_IN);
-            RotateTransition spin = new RotateTransition(Duration.millis(dur), r);
-            spin.setByAngle(360 + rnd.nextDouble() * 540);
-            FadeTransition fade = new FadeTransition(Duration.millis(1500), r);
-            fade.setDelay(Duration.millis(1000));
+            // 轻微水平漂移，下落更有"风感"
+            TranslateTransition drift = new TranslateTransition(Duration.millis(dur), piece);
+            drift.setToX((rnd.nextDouble() - 0.5) * 90);
+            drift.setInterpolator(Interpolator.EASE_BOTH);
+            RotateTransition spin = new RotateTransition(Duration.millis(dur), piece);
+            spin.setByAngle(360 + rnd.nextDouble() * 720);
+            FadeTransition fade = new FadeTransition(Duration.millis(1500), piece);
+            fade.setDelay(Duration.millis(1100));
             fade.setToValue(0);
-            ParallelTransition all = new ParallelTransition(fall, spin, fade);
-            all.setOnFinished(ev -> parent.getChildren().remove(r));
+            ParallelTransition all = new ParallelTransition(fall, drift, spin, fade);
+            if (delayMs > 0) {
+                all.setDelay(Duration.millis(delayMs));
+            }
+            all.setOnFinished(ev -> parent.getChildren().remove(piece));
             all.play();
         }
+    }
+
+    /** 彩带矩形（宽高随机的小长条）。 */
+    private static Rectangle confettiBar(Random rnd) {
+        return new Rectangle(7 + rnd.nextDouble() * 5, 12 + rnd.nextDouble() * 7,
+                CONFETTI_COLORS[rnd.nextInt(CONFETTI_COLORS.length)]);
+    }
+
+    /** 彩带圆点（小彩球）。 */
+    private static Circle confettiDot(Random rnd) {
+        return new Circle(4 + rnd.nextDouble() * 3,
+                CONFETTI_COLORS[rnd.nextInt(CONFETTI_COLORS.length)]);
     }
 
     // ==================== max 块呼吸光晕 ====================

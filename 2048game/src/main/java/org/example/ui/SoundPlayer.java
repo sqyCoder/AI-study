@@ -17,7 +17,7 @@ public class SoundPlayer {
 
     private static final Logger LOGGER = Logger.getLogger(SoundPlayer.class.getName());
 
-    private static final String[] FILES = {"merge.wav", "win.wav", "gameover.wav", "click.wav"};
+    private static final String[] FILES = {"merge.wav", "win.wav", "gameover.wav", "click.wav", "victory.wav"};
 
     private final Map<String, AudioClip> clips = new HashMap<>();
     private boolean enabled;
@@ -54,6 +54,11 @@ public class SoundPlayer {
 
     public void playWin() {
         play("win.wav");
+    }
+
+    /** 盛大胜利音效（spec3 §五：胜利全屏庆祝时的隆重音效）。 */
+    public void playVictory() {
+        play("victory.wav");
     }
 
     public void playGameOver() {

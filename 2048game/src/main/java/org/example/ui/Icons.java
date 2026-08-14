@@ -38,6 +38,11 @@ public final class Icons {
         return of(UNDO);
     }
 
+    /** 返回主菜单图标（spec3 §二 游戏内返回按钮）。 */
+    public static SVGPath back() {
+        return of(ARROW_BACK);
+    }
+
     private static SVGPath of(String d) {
         SVGPath p = new SVGPath();
         p.setContent(d);
@@ -68,4 +73,8 @@ public final class Icons {
     /** 撤销（undo） */
     private static final String UNDO =
             "M12.5,8c-2.65,0 -5.05,0.99 -6.9,2.6L2,7v9h9l-3.62,-3.62c1.39,-1.16 3.16,-1.88 5.12,-1.88c3.54,0 6.55,2.31 7.6,5.5l2.37,-0.78C21.08,11.03 17.15,8 12.5,8z";
+
+    /** 返回箭头（arrow_back） */
+    private static final String ARROW_BACK =
+            "M20,11H7.83l5.59,-5.59L12,4l-8,8l8,8l1.41,-1.41L7.83,13H20V11z";
 }
