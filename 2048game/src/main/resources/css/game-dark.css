@@ -327,3 +327,141 @@
     -fx-background-radius: 8;
     -fx-padding: 4 14 4 14;
 }
+
+/* ============ spec3 主菜单 / 设置 / 署名 / 胜利升级 ============ */
+
+/* 主菜单大标题 */
+.menu-title {
+    -fx-font-size: 54px;
+    -fx-font-weight: bold;
+    -fx-fill: linear-gradient(to right, -accent-a, -accent-b);
+    -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.55), 16, 0.4, 0, 2);
+}
+
+.menu-subtitle {
+    -fx-font-size: 14px;
+    -fx-text-fill: -text-dim;
+}
+
+.menu-section-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-dim;
+}
+
+/* 主按钮（开始游戏） */
+.menu-button {
+    -fx-background-color: linear-gradient(to right, -accent-a, -accent-b);
+    -fx-background-radius: 999;
+    -fx-padding: 14 52 14 52;
+    -fx-min-width: 240;
+    -fx-text-fill: -on-accent;
+    -fx-font-weight: bold;
+    -fx-font-size: 17px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.5), 20, 0.35, 0, 5);
+}
+
+.menu-button:hover {
+    -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.75), 26, 0.4, 0, 5);
+}
+
+/* 次按钮（设置/退出） */
+.menu-secondary {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 999;
+    -fx-padding: 10 30 10 30;
+    -fx-min-width: 190;
+    -fx-text-fill: -text-main;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+}
+
+.menu-secondary:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.18);
+}
+
+/* 棋盘尺寸选择钮 */
+.size-button {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 14;
+    -fx-padding: 8 14 8 14;
+    -fx-min-width: 56;
+    -fx-text-fill: -text-main;
+    -fx-font-weight: bold;
+    -fx-font-size: 15px;
+    -fx-cursor: hand;
+}
+
+.size-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.18);
+}
+
+.size-button:selected {
+    -fx-background-color: linear-gradient(to right, -accent-a, -accent-b);
+    -fx-text-fill: -on-accent;
+    -fx-effect: dropshadow(gaussian, rgba(124, 108, 240, 0.5), 14, 0.3, 0, 3);
+}
+
+/* 4×4 "经典"角标 */
+.classic-badge {
+    -fx-font-size: 10px;
+    -fx-text-fill: -on-accent;
+    -fx-opacity: 0.95;
+}
+
+/* 作者署名 */
+.author-label {
+    -fx-font-size: 13px;
+    -fx-text-fill: -text-dim;
+}
+
+/* 设置面板行 */
+.settings-panel {
+    -fx-spacing: 16;
+}
+
+.settings-row {
+    -fx-spacing: 10;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.settings-caption {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-main;
+    -fx-min-width: 60;
+}
+
+/* 设置里的分段选择钮（开/关、浅/暗、中/EN） */
+.seg-button {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 999;
+    -fx-padding: 7 20 7 20;
+    -fx-text-fill: -text-main;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+}
+
+.seg-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.18);
+}
+
+.seg-button:selected {
+    -fx-background-color: linear-gradient(to right, -accent-a, -accent-b);
+    -fx-text-fill: -on-accent;
+}
+
+/* 胜利面板副标题 / 新纪录提示 */
+.panel-subtitle {
+    -fx-font-size: 15px;
+    -fx-text-fill: -text-dim;
+}
+
+.new-best-label {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: linear-gradient(to right, -accent-a, -accent-b);
+}

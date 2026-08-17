@@ -27,9 +27,13 @@
         </padding>
         <top>
             <VBox spacing="12">
-                <!-- 标题行：渐变品牌字 + 分数/最佳胶囊卡 -->
-                <HBox spacing="12" alignment="CENTER_LEFT">
-                    <Text fx:id="titleText" styleClass="app-title" text="2048"/>
+                <!-- 标题行：返回按钮 + 渐变品牌字/作者署名 + 分数/最佳胶囊卡 -->
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Button fx:id="backButton" styleClass="icon-button" focusTraversable="false"/>
+                    <VBox spacing="-2" alignment="CENTER_LEFT">
+                        <Text fx:id="titleText" styleClass="app-title" text="2048"/>
+                        <Label fx:id="authorLabel" styleClass="author-label" text="制作：林森lsjs"/>
+                    </VBox>
                     <Region HBox.hgrow="ALWAYS" minWidth="8"/>
                     <VBox styleClass="capsule-card score-card" alignment="CENTER" spacing="2">
                         <Label fx:id="scoreCaptionLabel" styleClass="score-caption"/>
@@ -75,17 +79,24 @@
                 <StackPane fx:id="overlay" styleClass="overlay" visible="false">
                     <!-- 胜利彩带容器：独立 Pane（spec2 §4.4），垫在最底、不拦截鼠标 -->
                     <Pane fx:id="confettiLayer" mouseTransparent="true"/>
-                    <!-- 失败遮罩：再来一局 -->
+                    <!-- 失败遮罩：得分 + 新纪录提示 + 再来一局 -->
                     <VBox fx:id="gameOverBox" styleClass="panel-box" spacing="12" alignment="CENTER" visible="false">
                         <Label fx:id="gameOverTitleLabel" styleClass="panel-title"/>
                         <Label fx:id="gameOverScoreLabel" styleClass="panel-score"/>
+                        <Label fx:id="gameOverNewBestLabel" styleClass="new-best-label" visible="false" managed="false"/>
+                        <Label fx:id="gameOverSubtitleLabel" styleClass="panel-subtitle"/>
                         <Button fx:id="tryAgainButton" styleClass="app-button"/>
                     </VBox>
-                    <!-- 胜利遮罩：继续游戏 -->
+                    <!-- 胜利遮罩：庆祝文案 + 三按钮（继续/再来一局/返回主菜单） -->
                     <VBox fx:id="winBox" styleClass="panel-box" spacing="12" alignment="CENTER" visible="false">
                         <Label fx:id="winTitleLabel" styleClass="panel-title"/>
+                        <Label fx:id="winSubtitleLabel" styleClass="panel-subtitle"/>
                         <Label fx:id="winScoreLabel" styleClass="panel-score"/>
                         <Button fx:id="keepGoingButton" styleClass="app-button"/>
+                        <HBox spacing="10" alignment="CENTER">
+                            <Button fx:id="winNewGameButton" styleClass="app-button"/>
+                            <Button fx:id="winBackMenuButton" styleClass="menu-secondary"/>
+                        </HBox>
                     </VBox>
                     <!-- 统计面板：本局四项 + 历史 Top5 -->
                     <VBox fx:id="statsBox" styleClass="panel-box" spacing="10" alignment="CENTER" visible="false">
