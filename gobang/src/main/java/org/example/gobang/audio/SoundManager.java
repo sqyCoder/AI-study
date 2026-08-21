@@ -11,13 +11,14 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * 音效管理：启动时加载全部到 Map&lt;SoundType, MediaPlayer[]&gt;；
- * 每类型固定播放池轮换复用（防 GC 堆积）；
- * 黑/白子变调 setRate(0.92 + rand×0.16)；
- * 悬停音=总音量×0.15、落子=×1.0、终局=×1.0；
+ * 音效管理（spec2 §5.5）：
+ * 每类型 12 个 MediaPlayer 轮换复用（变体文件循环分配）；
+ * 黑/白子随机变调 setRate(0.92~1.08)；支持显式 rate 重载；
  * 所有播放 try/catch，素材缺失静默跳过。
  */
 public final class SoundManager {
+
+    private static final int POOL_SIZE = 12;
 
     private static SettingsStore settings;
     private static final Map<SoundType, List<MediaPlayer>> POOLS = new EnumMap<>(SoundType.class);
@@ -32,8 +33,10 @@ public final class SoundManager {
         settings = s;
         for (SoundType t : SoundType.values()) {
             List<MediaPlayer> list = new ArrayList<>();
-            for (int i = 0; i < t.variants; i++) {
-                Media m = loadMedia(t.fileName(i + 1));
+            for (int i = 0; i < POOL_SIZE; i++) {
+                // 池内轮询分配变体文件，保证变体均匀出现
+                String file = t.fileName(i % t.variants + 1);
+                Media m = loadMedia(file);
                 if (m != null) {
                     list.add(new MediaPlayer(m));
                 }
@@ -61,22 +64,31 @@ public final class SoundManager {
     }
 
     public static void play(SoundType t) {
-        play(t, 1.0);
+        play(t, 1.0, 1.0);
     }
 
-    /** volumeScale：悬停音=0.15，其余=1.0。 */
+    /** volumeScale：悬停音=0.15 等；rate=1 时黑白子自动随机变调。 */
     public static void play(SoundType t, double volumeScale) {
-        if (!initialized || settings == null || settings.isSfxMuted()) return;
+        double rate = 1.0;
+        if (t == SoundType.STONE_BLACK || t == SoundType.STONE_WHITE) {
+            rate = 0.92 + RND.nextDouble() * 0.16;
+        }
+        play(t, volumeScale, rate);
+    }
+
+    /** 显式速率播放。 */
+    public static void play(SoundType t, double volumeScale, double rate) {
+        if (!initialized || settings == null || settings.isSfxMuted()) {
+            return;
+        }
         try {
             List<MediaPlayer> list = POOLS.get(t);
-            if (list == null || list.isEmpty()) return;
+            if (list == null || list.isEmpty()) {
+                return;
+            }
             MediaPlayer p = list.get(RND.nextInt(list.size()));
             p.stop();
-            if (t == SoundType.STONE_BLACK || t == SoundType.STONE_WHITE) {
-                p.setRate(0.92 + RND.nextDouble() * 0.16);
-            } else {
-                p.setRate(1.0);
-            }
+            p.setRate(Math.max(0.25, Math.min(4, rate)));
             double v = Math.max(0, Math.min(1, settings.getSfxVolume() * volumeScale));
             p.setVolume(v);
             p.play();

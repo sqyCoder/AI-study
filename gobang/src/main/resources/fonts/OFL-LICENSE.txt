@@ -1,0 +1,13 @@
+霞鹜文楷 Lite (LXGW WenKai Lite) Medium
+----------------------------------------
+版本   : v1.522
+作者   : 骆驼翔 (lxgw)
+来源   : https://github.com/lxgw/LxgwWenKai-Lite
+许可   : SIL Open Font License 1.1 (OFL)
+         https://openfontlicense.org/open-font-license-official-text/
+
+本字体以 SIL Open Font License 1.1 授权发布，可随本项目自由分发、
+嵌入与再分发，无需支付费用。不得单独出售字体文件本身。
+
+在本项目中的用途：标题类书法感文字（菜单大标题 / 各面板标题 / 胜利标题）。
+加载失败时自动回退到系统「微软雅黑」，不影响游戏运行。

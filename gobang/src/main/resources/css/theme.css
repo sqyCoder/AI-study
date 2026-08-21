@@ -1,0 +1,29 @@
+/* 五子棋全局控件精修（spec2 §3.5）：滑条=凹槽木轨+金色圆钮 */
+
+.slider {
+    -fx-pref-height: 26;
+}
+.slider .track {
+    -fx-background-color: #1b120b,
+        linear-gradient(to bottom, #3a2a1a, #241811);
+    -fx-background-insets: 8 0 8 0, 9 1 9 1;
+    -fx-background-radius: 4, 3;
+    -fx-pref-height: 6;
+}
+.slider .thumb {
+    -fx-background-color: linear-gradient(to bottom, #f5d78a, #d9a94e);
+    -fx-background-radius: 14;
+    -fx-background-insets: -4;
+    -fx-border-color: #e8c47a;
+    -fx-border-radius: 14;
+    -fx-border-width: 1.2;
+    -fx-padding: 7;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.55), 6, 0, 0, 2);
+}
+.slider .thumb:hover {
+    -fx-background-color: linear-gradient(to bottom, #ffe6a8, #e4b862);
+}
+.slider .axis {
+    -fx-tick-label-fill: #c9b58f;
+    -fx-font-size: 10px;
+}

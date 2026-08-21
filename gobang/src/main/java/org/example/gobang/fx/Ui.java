@@ -2,7 +2,6 @@ package org.example.gobang.fx;
 
 import javafx.animation.ScaleTransition;
 import javafx.animation.TranslateTransition;
-import javafx.event.ActionEvent;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -15,72 +14,20 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
-import org.example.gobang.audio.SoundManager;
-import org.example.gobang.audio.SoundType;
-
-/** 统一 UI 样式助手：按钮 / 标注 / 徽标 / 布局工具。 */
+/**
+ * 统一 UI 助手：样式实现已迁入 Theme（spec2 §1），本类保留旧签名转发，
+ * 并持有头像徽标 / 脉冲 / 金圈等小部件。
+ */
 public final class Ui {
 
     public static final String MAKER = "制作：林森lsjs";
-    public static final String FONT = "Microsoft YaHei";
-
-    private static final String BTN_BASE =
-            "-fx-background-color: linear-gradient(to bottom, #f2dcae, #d9b378);"
-            + "-fx-background-radius: 16;"
-            + "-fx-border-color: #8a6a3a;"
-            + "-fx-border-radius: 16;"
-            + "-fx-border-width: 1.5;"
-            + "-fx-font-family: '" + FONT + "';"
-            + "-fx-font-weight: bold;"
-            + "-fx-text-fill: #4a3010;"
-            + "-fx-cursor: hand;"
-            + "-fx-focus-traversable: false;"
-            + "-fx-padding: 10 24 10 24;";
-    private static final String BTN_HOVER =
-            "-fx-background-color: linear-gradient(to bottom, #ffe8bc, #e6c384);"
-            + "-fx-background-radius: 16;"
-            + "-fx-border-color: #8a6a3a;"
-            + "-fx-border-radius: 16;"
-            + "-fx-border-width: 1.5;"
-            + "-fx-font-family: '" + FONT + "';"
-            + "-fx-font-weight: bold;"
-            + "-fx-text-fill: #4a3010;"
-            + "-fx-cursor: hand;"
-            + "-fx-focus-traversable: false;"
-            + "-fx-padding: 10 24 10 24;";
-    private static final String BTN_PRESSED =
-            "-fx-background-color: linear-gradient(to bottom, #c99d5e, #b0813f);"
-            + "-fx-background-radius: 16;"
-            + "-fx-border-color: #6e4f28;"
-            + "-fx-border-radius: 16;"
-            + "-fx-border-width: 1.5;"
-            + "-fx-font-family: '" + FONT + "';"
-            + "-fx-font-weight: bold;"
-            + "-fx-text-fill: #3c2608;"
-            + "-fx-cursor: hand;"
-            + "-fx-focus-traversable: false;"
-            + "-fx-padding: 10 24 10 24;";
-    private static final String TOGGLE_SELECTED = BTN_BASE.replace("#f2dcae, #d9b378", "#8fbf4f, #6f9e3a")
-            .replace("#4a3010", "#ffffff")
-            .replace("#8a6a3a", "#4c6b26");
 
     private Ui() {
     }
 
+    /** 旧签名：主金按钮（保持既有调用点与冒烟测试像素预期）。 */
     public static Button styledButton(String text, double fontSize) {
-        Button b = new Button(text);
-        String style = BTN_BASE + "-fx-font-size: " + fontSize + "px;";
-        String hover = BTN_HOVER + "-fx-font-size: " + fontSize + "px;";
-        String pressed = BTN_PRESSED + "-fx-font-size: " + fontSize + "px;";
-        b.setStyle(style);
-        b.setOnMouseEntered(e -> b.setStyle(hover));
-        b.setOnMouseExited(e -> b.setStyle(style));
-        b.setOnMousePressed(e -> b.setStyle(pressed));
-        b.setOnMouseReleased(e -> b.setStyle(b.isHover() ? hover : style));
-        // 用事件过滤器而非 setOnAction：调用方后续 setOnAction 不会覆盖点击音效
-        b.addEventHandler(ActionEvent.ACTION, e -> SoundManager.play(SoundType.CLICK));
-        b.setCursor(Cursor.HAND);
-        return b;
+        return Theme.primaryButton(text, fontSize);
     }
 
     public static Button smallButton(String text) {
@@ -88,39 +35,19 @@ public final class Ui {
     }
 
     public static ToggleButton toggleButton(String text, ToggleGroup group) {
-        ToggleButton b = new ToggleButton(text);
-        b.setToggleGroup(group);
-        b.setFocusTraversable(false);
-        b.setCursor(Cursor.HAND);
-        b.setStyle(BTN_BASE + "-fx-font-size: 16px;");
-        b.selectedProperty().addListener((ob, o, n) ->
-                b.setStyle((n ? TOGGLE_SELECTED : BTN_BASE) + "-fx-font-size: 16px;"));
-        b.setOnMouseEntered(e -> {
-            if (!b.isSelected()) b.setStyle(BTN_HOVER + "-fx-font-size: 16px;");
-        });
-        b.setOnMouseExited(e -> {
-            if (!b.isSelected()) b.setStyle(BTN_BASE + "-fx-font-size: 16px;");
-        });
-        b.addEventHandler(ActionEvent.ACTION, e -> SoundManager.play(SoundType.CLICK));
-        return b;
+        return Theme.toggleButton(text, group);
     }
 
     public static Label makerLabel() {
-        Label l = new Label(MAKER);
-        l.setStyle("-fx-font-family: '" + FONT + "'; -fx-font-size: 12px; -fx-text-fill: rgba(255,255,255,0.6);");
-        return l;
+        return Theme.makerLabel();
     }
 
     public static Region spacer() {
-        Region r = new Region();
-        HBox.setHgrow(r, Priority.ALWAYS);
-        return r;
+        return Theme.spacer();
     }
 
     public static Region vSpacer() {
-        Region r = new Region();
-        VBox.setVgrow(r, Priority.ALWAYS);
-        return r;
+        return Theme.vSpacer();
     }
 
     /** 头像徽标：圆 + 名字。 */
@@ -130,8 +57,8 @@ public final class Ui {
         circle.setStroke(javafx.scene.paint.Color.web("#ffffff", 0.85));
         circle.setStrokeWidth(2.5);
         Label label = new Label(name);
-        label.setStyle("-fx-font-family: '" + FONT + "'; -fx-font-size: 16px; -fx-font-weight: bold;"
-                + "-fx-text-fill: #f5e9cf;");
+        label.setStyle("-fx-font-family: '" + Theme.FONT_BODY + "'; -fx-font-size: 16px; -fx-font-weight: bold;"
+                + "-fx-text-fill: " + Theme.CREAM + ";");
         VBox box = new VBox(6, circle, label);
         box.setAlignment(javafx.geometry.Pos.CENTER);
         return box;
@@ -153,26 +80,28 @@ public final class Ui {
         st.play();
     }
 
-    /** 头像金圈绽放动画。 */
+    /** 金圈绽放（可叠双环，spec2 §4.5）。 */
     public static void goldRing(javafx.scene.layout.StackPane avatarNode) {
-        javafx.scene.shape.Circle ring = new javafx.scene.shape.Circle(46);
-        ring.setFill(null);
-        ring.setStroke(javafx.scene.paint.Color.web("#ffd54a"));
-        ring.setStrokeWidth(4);
-        ring.setOpacity(0);
-        avatarNode.getChildren().add(ring);
-        TranslateTransition t = new TranslateTransition(Duration.millis(400), ring);
-        t.setFromY(0);
-        t.setToY(0);
-        ScaleTransition st = new ScaleTransition(Duration.millis(400), ring);
-        st.setFromX(0.6);
-        st.setFromY(0.6);
-        st.setToX(1.25);
-        st.setToY(1.25);
-        st.setOnFinished(e -> {
-            avatarNode.getChildren().remove(ring);
-        });
-        ring.setOpacity(1);
-        st.play();
+        goldRings(avatarNode, 1);
+    }
+
+    public static void goldRings(javafx.scene.layout.StackPane avatarNode, int count) {
+        for (int i = 0; i < count; i++) {
+            javafx.scene.shape.Circle ring = new javafx.scene.shape.Circle(46);
+            ring.setFill(null);
+            ring.setStroke(javafx.scene.paint.Color.web(i == 0 ? "#ffd54a" : "#fff2cc"));
+            ring.setStrokeWidth(i == 0 ? 4 : 2);
+            ring.setOpacity(0);
+            avatarNode.getChildren().add(ring);
+            ScaleTransition st = new ScaleTransition(Duration.millis(400 + i * 120), ring);
+            st.setDelay(Duration.millis(i * 110));
+            st.setFromX(0.6);
+            st.setFromY(0.6);
+            st.setToX(1.25 + i * 0.25);
+            st.setToY(1.25 + i * 0.25);
+            st.setOnFinished(e -> avatarNode.getChildren().remove(ring));
+            ring.setOpacity(1);
+            st.play();
+        }
     }
 }

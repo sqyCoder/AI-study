@@ -1,9 +1,10 @@
 package org.example.gobang.fx;
 
-import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.RotateTransition;
 import javafx.animation.ScaleTransition;
+import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -14,7 +15,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 
 import org.example.gobang.audio.SoundManager;
@@ -26,9 +26,10 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * 猜先仪式（spec §3.5）：
- * 随机分配持子/猜子角色 → 播报+头像高亮 → 持子方操作（人/两按钮、AI/转圈）
- * → 猜子方操作 → 揭晓（鼓点+数字翻转）→ 判定（欢庆/低沉）→ 黑方先行。
+ * 猜先仪式（spec §3.5 流程不变 / spec2 §4.5 动效增强）：
+ * 随机分配持子/猜子角色 → 播报+头像高亮 → 持子方操作 → 猜子方操作
+ * → 揭晓（鼓点+数字滚动定格）→ 判定（双环金圈+上升火星）→ 黑方先行。
+ * 面板玻璃拟态 + spring 弹入。
  */
 public class GuessDialog {
 
@@ -70,6 +71,7 @@ public class GuessDialog {
         assignRoles();
         build();
         parent.getChildren().add(overlay);
+        Theme.springIn(panel);
         startFlow();
     }
 
@@ -89,22 +91,19 @@ public class GuessDialog {
     }
 
     private void build() {
-        Rectangle dark = new Rectangle(800, 900, Color.rgb(0, 0, 0, 0.55));
-        dark.setOnMouseClicked(e -> e.consume());
-        overlay.getChildren().add(dark);
+        if (parent instanceof StackPane sp) {
+            Theme.applyCss(sp);
+        }
+        overlay.getChildren().add(Theme.radialMask());
 
         panel.setAlignment(Pos.CENTER);
         panel.setPadding(new Insets(26, 34, 20, 34));
         panel.setMaxWidth(560);
-        panel.setStyle("-fx-background-color: rgba(56, 35, 15, 0.95); -fx-background-radius: 22;"
-                + "-fx-border-color: #8a6a3a; -fx-border-radius: 22; -fx-border-width: 2;");
 
-        Label title = new Label("猜先");
-        title.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 34px; -fx-font-weight: bold;"
-                + "-fx-text-fill: #ffd54a;");
+        Label title = Theme.titleLabel("猜先", 34, Theme.GOLD_BRIGHT);
 
-        announce.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 22px; -fx-font-weight: bold;"
-                + "-fx-text-fill: #f5e9cf;");
+        announce.setStyle("-fx-font-family: '" + Theme.FONT_BODY + "'; -fx-font-size: 22px;"
+                + "-fx-font-weight: bold; -fx-text-fill: " + Theme.CREAM + ";");
 
         holderAvatar = wrap(Ui.badge(holderName, "#3fae4f"));
         guesserAvatar = wrap(Ui.badge(guesserName, "#3f8fae"));
@@ -114,12 +113,15 @@ public class GuessDialog {
         actionArea.setPrefHeight(120);
         actionArea.setAlignment(Pos.CENTER);
 
-        number.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 56px; -fx-font-weight: bold;"
-                + "-fx-text-fill: #ffd54a;");
-        hint.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 18px; -fx-text-fill: #f0e0bd;");
-        result.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 24px; -fx-font-weight: bold;");
+        number.setStyle("-fx-font-family: '" + Theme.FONT_BODY + "'; -fx-font-size: 56px;"
+                + "-fx-font-weight: bold; -fx-text-fill: " + Theme.GOLD_BRIGHT + ";");
+        hint.setStyle("-fx-font-family: '" + Theme.FONT_BODY + "'; -fx-font-size: 18px;"
+                + "-fx-text-fill: " + Theme.TEXT_MAIN + ";");
+        result.setStyle("-fx-font-family: '" + Theme.FONT_BODY + "'; -fx-font-size: 24px;"
+                + "-fx-font-weight: bold;");
 
-        panel.getChildren().addAll(title, announce, avatarRow, actionArea, number, hint, result, Ui.makerLabel());
+        panel.getChildren().addAll(title, Theme.divider(340), announce, avatarRow,
+                actionArea, number, hint, result, Ui.makerLabel());
         overlay.getChildren().add(panel);
     }
 
@@ -169,8 +171,6 @@ public class GuessDialog {
         SoundManager.play(SoundType.GUESS_PICK);
         b1.setDisable(true);
         b2.setDisable(true);
-        Button chosen = n == 1 ? b1 : b2;
-        chosen.setStyle(chosen.getStyle() + "-fx-background-color: #8fbf4f; -fx-text-fill: white;");
         hint.setText(holderName + " 已握好（结果保密）");
         after(500, this::stepGuesser);
     }
@@ -201,24 +201,28 @@ public class GuessDialog {
         SoundManager.play(SoundType.GUESS_PICK);
         b1.setDisable(true);
         b2.setDisable(true);
-        Button chosen = odd ? b1 : b2;
-        chosen.setStyle(chosen.getStyle() + "-fx-background-color: #8fbf4f; -fx-text-fill: white;");
         after(500, this::reveal);
     }
 
+    /** 揭晓：鼓点 + 数字滚动定格（spec2 §4.5）。 */
     private void reveal() {
         if (closed) return;
         clearActionArea();
-        // 鼓点 + 数字翻转
         SoundManager.play(SoundType.GUESS_REVEAL);
-        number.setText(String.valueOf(held));
-        ScaleTransition st = new ScaleTransition(Duration.millis(450), number);
-        st.setFromX(0.1);
-        st.setFromY(0.1);
-        st.setToX(1);
-        st.setToY(1);
-        st.setInterpolator(Interpolator.EASE_OUT);
-        st.play();
+        Timeline roll = new Timeline(new KeyFrame(Duration.millis(45), e ->
+                number.setText(String.valueOf(1 + rnd.nextInt(2)))));
+        roll.setCycleCount(10);
+        roll.setOnFinished(e -> {
+            number.setText(String.valueOf(held));
+            ScaleTransition st = new ScaleTransition(Duration.millis(220), number);
+            st.setFromX(1.28);
+            st.setFromY(1.28);
+            st.setToX(1);
+            st.setToY(1);
+            st.setInterpolator(Theme.EASE_OUT_BACK);
+            st.play();
+        });
+        roll.play();
         hint.setText(holderName + " 握了 " + held + " 颗");
         after(1150, this::showVerdict);
     }
@@ -228,18 +232,33 @@ public class GuessDialog {
         boolean guesserWins = GameSession.guesserWins(held, guessOdd);
         String winnerName = guesserWins ? guesserName : holderName;
         result.setText((guesserWins ? "猜对！" : "猜错！") + winnerName + " 执黑先行");
+        StackPane winAvatar = guesserWins ? guesserAvatar : holderAvatar;
         if (guesserWins) {
-            result.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 24px; -fx-font-weight: bold;"
-                    + "-fx-text-fill: #ffd54a;");
+            result.setStyle("-fx-font-family: '" + Theme.FONT_BODY + "'; -fx-font-size: 24px;"
+                    + "-fx-font-weight: bold; -fx-text-fill: " + Theme.GOLD_BRIGHT + ";");
             SoundManager.play(SoundType.GUESS_RESULT_WIN);
-            Ui.goldRing(guesserAvatar);
         } else {
-            result.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 24px; -fx-font-weight: bold;"
-                    + "-fx-text-fill: #c9b98f;");
+            result.setStyle("-fx-font-family: '" + Theme.FONT_BODY + "'; -fx-font-size: 24px;"
+                    + "-fx-font-weight: bold; -fx-text-fill: #c9b98f;");
             SoundManager.play(SoundType.GUESS_RESULT_LOSE);
-            Ui.goldRing(holderAvatar);
         }
-        Ui.pulse(guesserWins ? guesserAvatar : holderAvatar);
+        // 双环金圈 + 上升火星（spec2 §4.5）
+        Ui.goldRings(winAvatar, 2);
+        javafx.geometry.Point2D pt =
+                winAvatar.localToScene(winAvatar.getWidth() / 2, winAvatar.getHeight() / 2 - 12);
+        if (pt != null) {
+            Particles.get().sparks(pt.getX(), pt.getY(), 6);
+        }
+        Ui.pulse(winAvatar);
+        // 结论文字微弹
+        result.setScaleX(0.9);
+        result.setScaleY(0.9);
+        ScaleTransition pop = new ScaleTransition(Duration.millis(200), result);
+        pop.setToX(1);
+        pop.setToY(1);
+        pop.setInterpolator(Theme.EASE_OUT_BACK);
+        pop.play();
+
         session.applyGuess(holderIsAI, guesserIsAI, held, guessOdd);
         after(1700, this::close);
     }
@@ -273,18 +292,17 @@ public class GuessDialog {
         clearActionArea();
         VBox box = new VBox(10);
         box.setAlignment(Pos.CENTER);
-        Label l = new Label(text);
-        l.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 20px; -fx-text-fill: #f0e0bd;");
+        Label l = Theme.label(text, 20, Theme.TEXT_MAIN, false);
         Circle c = new Circle(14);
         c.setFill(null);
-        c.setStroke(Color.web("#f5e9cf"));
+        c.setStroke(Color.web(Theme.GOLD_BRIGHT));
         c.setStrokeWidth(3);
         c.getStrokeDashArray().addAll(16.0, 12.0);
         RotateTransition rt = new RotateTransition(Duration.seconds(1), c);
         rt.setFromAngle(0);
         rt.setToAngle(360);
         rt.setCycleCount(RotateTransition.INDEFINITE);
-        rt.setInterpolator(Interpolator.LINEAR);
+        rt.setInterpolator(javafx.animation.Interpolator.LINEAR);
         spinRt = rt;
         rt.play();
         box.getChildren().addAll(l, c);

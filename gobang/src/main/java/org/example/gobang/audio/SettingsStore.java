@@ -21,6 +21,7 @@ public class SettingsStore {
     private double sfxVolume = 0.8;
     private boolean musicMuted = false;
     private boolean sfxMuted = false;
+    private String netName = "";
 
     public SettingsStore() {
         file = new File(System.getProperty("user.home") + File.separator + ".gobang"
@@ -35,6 +36,7 @@ public class SettingsStore {
             sfxVolume = clamp(Double.parseDouble(props.getProperty("sfx.volume", "0.8")));
             musicMuted = Boolean.parseBoolean(props.getProperty("music.muted", "false"));
             sfxMuted = Boolean.parseBoolean(props.getProperty("sfx.muted", "false"));
+            netName = props.getProperty("net.name", "");
         } catch (Exception e) {
             // 首次运行或文件损坏：使用默认值
         }
@@ -50,6 +52,7 @@ public class SettingsStore {
             props.setProperty("sfx.volume", String.valueOf(sfxVolume));
             props.setProperty("music.muted", String.valueOf(musicMuted));
             props.setProperty("sfx.muted", String.valueOf(sfxMuted));
+            props.setProperty("net.name", netName == null ? "" : netName);
             try (OutputStream out = new FileOutputStream(file)) {
                 props.store(out, "gobang settings");
             }
@@ -94,6 +97,15 @@ public class SettingsStore {
     /** 显式落盘（写失败静默，游戏照常）。 */
     public void persist() {
         save();
+    }
+
+    /** 联机昵称（spec3 §3）；空串表示未设置，由调用方给默认值。 */
+    public String getNetName() {
+        return netName == null ? "" : netName;
+    }
+
+    public void setNetName(String name) {
+        this.netName = name == null ? "" : name.trim();
     }
 
     private static double clamp(double v) {

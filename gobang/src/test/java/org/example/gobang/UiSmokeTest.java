@@ -136,7 +136,7 @@ public class UiSmokeTest {
             ForestBackground bg = new ForestBackground();
             bg.start();
             SettingsStore settings = new SettingsStore();
-            MenuView menu = new MenuView(bg, settings, (m, d) -> { });
+            MenuView menu = new MenuView(bg, settings, (m, d) -> { }, () -> { });
             javafx.stage.Stage st = new javafx.stage.Stage();
             javafx.scene.Scene sc = new javafx.scene.Scene(menu.getRoot(), 800, 900);
             st.setScene(sc);
@@ -205,7 +205,7 @@ public class UiSmokeTest {
             ForestBackground bg = new ForestBackground();
             bg.start();
             SettingsStore settings = new SettingsStore();
-            MenuView menu = new MenuView(bg, settings, (m, d) -> { });
+            MenuView menu = new MenuView(bg, settings, (m, d) -> { }, () -> { });
             javafx.stage.Stage st = new javafx.stage.Stage();
             javafx.scene.Scene sc = new javafx.scene.Scene(menu.getRoot(), 800, 900);
             st.setScene(sc);
@@ -284,7 +284,7 @@ public class UiSmokeTest {
             bg.start();
             SettingsStore settings = new SettingsStore();
             MenuView menu = new MenuView(bg, settings,
-                    (m, d) -> { modeRef.set(m); diffRef.set(d); });
+                    (m, d) -> { modeRef.set(m); diffRef.set(d); }, () -> { });
             // 挂载真实 Stage+Scene，强制 layout
             javafx.stage.Stage st = new javafx.stage.Stage();
             javafx.scene.Scene sc = new javafx.scene.Scene(menu.getRoot(), 800, 900);

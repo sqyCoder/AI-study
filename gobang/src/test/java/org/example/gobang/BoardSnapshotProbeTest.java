@@ -94,9 +94,14 @@ public class BoardSnapshotProbeTest {
         return (GameSession) f.get(gv);
     }
 
+    // 新几何常量（spec2 §2.1）：shakeGroup 偏移 50 / 木框 INSET=GRID=28 / 格距 46
+    private static final int PANE_OFF_X = 50;
+    private static final int GRID = 28;
+    private static final int CELL = 46;
+
     private static void click(Pane boardPane, int row, int col) {
-        double x = 50 + col * 50.0 + 1;
-        double y = row * 50.0 + 1;
+        double x = PANE_OFF_X + GRID + col * (double) CELL + 1;
+        double y = GRID + row * (double) CELL + 1;
         MouseEvent ev = new MouseEvent(MouseEvent.MOUSE_CLICKED, x, y, x, y,
                 MouseButton.PRIMARY, 1, false, false, false, false,
                 true, false, false, true, true, false, null);
@@ -136,9 +141,9 @@ public class BoardSnapshotProbeTest {
         Method drawBoard = GameView.class.getDeclaredMethod("drawBoard");
         drawBoard.setAccessible(true);
         drawBoard.invoke(gv);
-        Method renderStones = GameView.class.getDeclaredMethod("renderStones");
+        Method renderStones = GameView.class.getDeclaredMethod("renderStones", boolean.class);
         renderStones.setAccessible(true);
-        renderStones.invoke(gv);
+        renderStones.invoke(gv, false);
     }
 
     private static java.awt.Color colorAt(javafx.scene.canvas.Canvas c, int x, int y) {
@@ -147,7 +152,8 @@ public class BoardSnapshotProbeTest {
         return new java.awt.Color(
                 (int) Math.round(col.getRed() * 255),
                 (int) Math.round(col.getGreen() * 255),
-                (int) Math.round(col.getBlue() * 255));
+                (int) Math.round(col.getBlue() * 255),
+                (int) Math.round(col.getOpacity() * 255));
     }
 
     private static boolean isDark(java.awt.Color c) {
@@ -191,20 +197,26 @@ public class BoardSnapshotProbeTest {
             s.place(7, 5, Board.BLACK);
             rerender(gv);
 
-            // 黑子应在 (col*50, row*50)
-            assertTrue(isDark(colorAt(stonesCanvas(gv), 3 * 50, 7 * 50)), "黑子(7,3)应画在(150,350)");
-            assertTrue(isDark(colorAt(stonesCanvas(gv), 4 * 50, 7 * 50)), "黑子(7,4)应画在(200,350)");
-            assertTrue(isDark(colorAt(stonesCanvas(gv), 5 * 50, 7 * 50)), "黑子(7,5)应画在(250,350)");
-            // 白子应在 (col*50, row*50)
-            assertTrue(isLight(colorAt(stonesCanvas(gv), 5 * 50, 5 * 50)), "白子(5,5)应画在(250,250)");
-            assertTrue(isLight(colorAt(stonesCanvas(gv), 5 * 50, 6 * 50)), "白子(6,5)应画在(250,300)");
-            // 反证：转置位置(350,150)等处应是棋盘木色(深)而非黑子
-            // 转置位置(7*50,3*50)=(350,150) 处不应是黑子
-            assertFalse(isDark(colorAt(stonesCanvas(gv), 7 * 50, 3 * 50)),
+            // 黑子中心 = (GRID+col*46, GRID+row*46)
+            assertTrue(isDark(colorAt(stonesCanvas(gv), GRID + 3 * CELL, GRID + 7 * CELL)),
+                    "黑子(7,3)应画在(" + (GRID + 3 * CELL) + "," + (GRID + 7 * CELL) + ")");
+            assertTrue(isDark(colorAt(stonesCanvas(gv), GRID + 4 * CELL, GRID + 7 * CELL)),
+                    "黑子(7,4)应画在(" + (GRID + 4 * CELL) + "," + (GRID + 7 * CELL) + ")");
+            assertTrue(isDark(colorAt(stonesCanvas(gv), GRID + 5 * CELL, GRID + 7 * CELL)),
+                    "黑子(7,5)应画在(" + (GRID + 5 * CELL) + "," + (GRID + 7 * CELL) + ")");
+            // 白子
+            assertTrue(isLight(colorAt(stonesCanvas(gv), GRID + 5 * CELL, GRID + 5 * CELL)),
+                    "白子(5,5)应画在格中心");
+            assertTrue(isLight(colorAt(stonesCanvas(gv), GRID + 5 * CELL, GRID + 6 * CELL)),
+                    "白子(6,5)应画在格中心");
+            // 反证：转置位置不应是黑子（row/col 不应混淆）
+            assertFalse(isDark(colorAt(stonesCanvas(gv), 350, 150)),
                     "转置位置(350,150)不应是黑子（row/col 不应混淆）");
-            // 星位正确：{11,3} 应在(150,550)，{3,11} 应在(550,150)
-            assertTrue(isDark(colorAt(boardCanvas(gv), 3 * 50, 11 * 50)), "星位(11,3)应画在(150,550)");
-            assertTrue(isDark(colorAt(boardCanvas(gv), 11 * 50, 3 * 50)), "星位(3,11)应画在(550,150)");
+            // 星位 {11,3} 与 {3,11}
+            assertTrue(isDark(colorAt(boardCanvas(gv), GRID + 3 * CELL, GRID + 11 * CELL)),
+                    "星位(11,3)应在格中心");
+            assertTrue(isDark(colorAt(boardCanvas(gv), GRID + 11 * CELL, GRID + 3 * CELL)),
+                    "星位(3,11)应在格中心");
         });
     }
 
@@ -251,8 +263,8 @@ public class BoardSnapshotProbeTest {
         int[] cells = {7, 3, 7, 4, 7, 5};
         for (int i = 0; i < 6; i += 2) {
             int r = cells[i], c = cells[i + 1];
-            double x = 50 + c * 50.0 + 1;
-            double y = r * 50.0 + 1;
+            double x = PANE_OFF_X + GRID + c * (double) CELL + 1;
+            double y = GRID + r * (double) CELL + 1;
             fx(() -> {
                 try {
                     hc.invoke(gv, x, y);
@@ -264,11 +276,11 @@ public class BoardSnapshotProbeTest {
             Thread.sleep(150);
             int hist = fxVal(() -> sessionOf(gv).board.getHistory().size());
             assertTrue(hist >= (i / 2) + 1, "第" + (i / 2 + 1) + "手后应有 " + (i / 2 + 1) + " 子，实际=" + hist);
-            // 验证黑子画在点击处
+            // 验证黑子画在点击处（格中心）
             final int fr = r, fc = c;
             boolean placed = fxVal(() -> {
                 rerender(gv);
-                return isDark(colorAt(stonesCanvas(gv), fc * 50, fr * 50));
+                return isDark(colorAt(stonesCanvas(gv), GRID + fc * CELL, GRID + fr * CELL));
             });
             assertTrue(placed, "黑子(" + r + "," + c + ")应画在点击处");
             // 等待 AI 回应（最多 3 秒）：轮到人且非思考中
@@ -288,7 +300,7 @@ public class BoardSnapshotProbeTest {
 
         // 悔棋：应撤 2 子，回到人回合
         fx(() -> {
-            Button undo = (Button) findNode(gv.getRoot(), "悔棋");
+            Button undo = (Button) findNode(gv.getRoot(), "↩ 悔棋");
             assertNotNull(undo);
             undo.fire();
         });
@@ -319,7 +331,7 @@ public class BoardSnapshotProbeTest {
         });
         fx(() -> {
             try {
-                hc.invoke(gv, 50 + 4 * 50.0 + 1, 0 * 50.0 + 1);
+                hc.invoke(gv, PANE_OFF_X + GRID + 4 * (double) CELL + 1, GRID + 0 * (double) CELL + 1);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
@@ -330,19 +342,20 @@ public class BoardSnapshotProbeTest {
             if (fxVal(() -> sessionOf(gv).getState() == org.example.gobang.model.GameState.FINISHED)) break;
             Thread.sleep(100);
         }
-        Thread.sleep(600);
+        // 等待落子动画(360ms)+光带扫描完成（victory 内 t≈1150ms 后光带常亮）
+        Thread.sleep(1500);
         boolean finished = fxVal(() -> sessionOf(gv).getState() == org.example.gobang.model.GameState.FINISHED);
         assertTrue(finished, "连五后应终局");
 
-        // 验证胜利连线画在第 0 行（y=0，从 (0,0) 到 (200,0)），而非转置的第 0 列
+        // 验证胜利光带画在第 0 行（y=GRID，从 (GRID,GRID) 到 (GRID+4*46,GRID)），而非转置的第 0 列
         fx(() -> rerender(gv));
         Thread.sleep(300);
-        java.awt.Color linePix = fxVal(() -> colorAt(fxCanvas(gv), 100, 0));
-        java.awt.Color wrongPix = fxVal(() -> colorAt(fxCanvas(gv), 0, 100));
+        java.awt.Color linePix = fxVal(() -> colorAt(fxCanvas(gv), GRID + 2 * CELL, GRID));
+        java.awt.Color wrongPix = fxVal(() -> colorAt(fxCanvas(gv), 650, 650));
         assertTrue(linePix.getRed() > 200 && linePix.getBlue() < 200,
-                "胜利连线应横贯第 0 行（(100,0) 处有金色连线），实际=" + linePix);
+                "胜利连线应横贯第 0 行（格中心处有金色连线），实际=" + linePix);
         assertTrue(wrongPix.getBlue() > 200,
-                "胜利连线不应画在转置的第 0 列（(0,100) 应为空白），实际=" + wrongPix);
+                "远离连线处不应有金色连线（空白区呈白底），实际=" + wrongPix);
     }
 
     @Test
@@ -355,7 +368,7 @@ public class BoardSnapshotProbeTest {
         fx(() -> {
             ForestBackground bg = new ForestBackground();
             bg.start();
-            MenuView menu = new MenuView(bg, new SettingsStore(), (m, d) -> { });
+            MenuView menu = new MenuView(bg, new SettingsStore(), (m, d) -> { }, () -> { });
             ref.set(menu);
             Stage st = new Stage();
             Scene sc = new Scene(menu.getRoot(), 800, 900);
@@ -415,25 +428,48 @@ public class BoardSnapshotProbeTest {
                 MenuView menuView = (MenuView) menuField.get(main);
                 javafx.scene.layout.StackPane menuRoot = menuView.getRoot();
                 openGame.invoke(main, GameSession.Mode.PVE, GameSession.Difficulty.EASY);
-                // 开一局后，背景节点应被 GameView 拿走（不在菜单根中）
-                assertFalse(actualScene.getRoot() == menuRoot, "开一局后场景根应是 GameView");
+                // 切页为异步过渡（淡出 140ms）：轮询等待场景根切换为 GameView
+                long waitDeadline = System.currentTimeMillis() + 3000;
+                boolean switched = false;
+                while (System.currentTimeMillis() < waitDeadline) {
+                    Boolean isMenu = fxVal(() -> st.getScene().getRoot() == menuRoot);
+                    if (!isMenu) {
+                        switched = true;
+                        break;
+                    }
+                    Thread.sleep(50);
+                }
+                assertTrue(switched, "开一局后场景根应是 GameView");
 
                 Method openMenu = org.example.gobang.Main.class.getDeclaredMethod("openMenu");
                 openMenu.setAccessible(true);
                 openMenu.invoke(main);
-                // 返回菜单后：场景根是菜单根，且背景节点放回底部
-                assertTrue(actualScene.getRoot() == menuRoot, "返回后场景根应是菜单");
+                // 返回菜单同样异步：轮询等待
+                waitDeadline = System.currentTimeMillis() + 3000;
+                boolean back = false;
+                while (System.currentTimeMillis() < waitDeadline) {
+                    Boolean isMenu = fxVal(() -> st.getScene().getRoot() == menuRoot);
+                    if (isMenu) {
+                        back = true;
+                        break;
+                    }
+                    Thread.sleep(50);
+                }
+                assertTrue(back, "返回后场景根应是菜单");
                 javafx.scene.layout.StackPane mr = menuRoot;
                 Field bgField = org.example.gobang.Main.class.getDeclaredField("background");
                 bgField.setAccessible(true);
                 ForestBackground bg = (ForestBackground) bgField.get(main);
                 assertTrue(mr.getChildren().contains(bg.getNode()), "菜单根应重新包含背景节点");
                 assertTrue(mr.getChildren().indexOf(bg.getNode()) == 0, "背景节点应在菜单根底部");
-                // 快照验证菜单不是白屏：天空区域应呈蓝色调
+                // 快照验证菜单不是白屏：晨雾天空应呈冷色调（蓝>红，且非纯白）
                 javafx.scene.image.PixelReader pr = mr.snapshot(
                         new javafx.scene.SnapshotParameters(), null).getPixelReader();
                 javafx.scene.paint.Color sky = pr.getColor(400, 60);
-                assertTrue(sky.getBlue() > 0.4, "菜单天空应呈蓝色而非白屏，实际=" + sky);
+                assertFalse(sky.getRed() > 0.92 && sky.getGreen() > 0.92 && sky.getBlue() > 0.92,
+                        "菜单不应白屏，实际=" + sky);
+                assertTrue(sky.getBlue() > 0.55 && sky.getBlue() > sky.getRed(),
+                        "菜单顶部应为晨雾天空（蓝>红），实际=" + sky);
                 st.close();
             } catch (Throwable t) {
                 err.set(t);

@@ -11,20 +11,21 @@ import javafx.scene.paint.Stop;
 import java.util.Random;
 
 /**
- * 森林背景：静态 Canvas 绘制一次。
- * 天空渐变 → 远山两层锯齿剪影 → 太阳光晕 → 侧边树影（树干矩形+树冠圆形簇）
- * → 底部草地。
+ * 晨雾暖阳森林背景（spec2 修订版：恢复森林世界，保留精修质感）：
+ * 晨空渐变 → 太阳光晕+斜射光柱 → 三层远山（大气透视）→ 山谷雾带
+ * → 中景林线 → 草地 → 林间木桌平台（承托棋盘）→ 前景框景树影
+ * → 草丛/野花点缀 → 四角暗角。静态 Canvas 绘制一次，种子固定。
+ * 动效层（落叶/光尘）由全局 Particles 单例负责。
  */
 public class ForestBackground {
 
     private final Canvas scene = new Canvas(800, 900);
-    private final LeafAnimation leaves = new LeafAnimation();
     private final javafx.scene.layout.StackPane root = new javafx.scene.layout.StackPane();
-    private final Random rnd = new Random(7);
+    private final Random rnd = new Random(12);
 
     public ForestBackground() {
         draw();
-        root.getChildren().addAll(scene, leaves.getCanvas());
+        root.getChildren().add(scene);
         root.setMouseTransparent(true);
     }
 
@@ -32,117 +33,205 @@ public class ForestBackground {
         return root;
     }
 
-    public LeafAnimation getLeaves() {
-        return leaves;
-    }
-
+    /** 兼容旧调用：启动/停止/暂停全部转发给全局粒子引擎。 */
     public void start() {
-        leaves.start();
+        Particles.get().start();
     }
 
     public void stop() {
-        leaves.stop();
+        Particles.get().stop();
     }
 
-    /** 终局花瓣庆祝：临时增至 40 片，3 秒后还原。 */
-    public void burstPetals() {
-        leaves.burstPetals();
+    public void setPaused(boolean p) {
+        Particles.get().setPaused(p);
     }
 
     private void draw() {
         GraphicsContext g = scene.getGraphicsContext2D();
 
-        // 1. 天空渐变
-        LinearGradient sky = new LinearGradient(0, 0, 0, 660, false, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.web("#5f9dd6")),
-                new Stop(0.42, Color.web("#a5d3ea")),
-                new Stop(0.75, Color.web("#dcefe2")),
-                new Stop(1, Color.web("#c9e3bd")));
-        g.setFill(sky);
+        // 1. 晨空渐变（地平线泛暖）
+        g.setFill(new LinearGradient(0, 0, 0, 660, false, CycleMethod.NO_CYCLE,
+                new Stop(0, Color.web("#8ec3e8")),
+                new Stop(0.45, Color.web("#c9e4ef")),
+                new Stop(0.75, Color.web("#eee9cf")),
+                new Stop(1, Color.web("#f6ecd2"))));
         g.fillRect(0, 0, 800, 660);
 
-        // 2. 太阳光晕
-        RadialGradient sun = new RadialGradient(0, 0, 610, 140, 150, false, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.web("#fff4c8", 0.95)),
-                new Stop(0.55, Color.web("#ffecaa", 0.4)),
-                new Stop(1, Color.web("#ffecaa", 0)));
-        g.setFill(sun);
-        g.fillOval(460, 0, 300, 300);
+        // 2. 太阳光晕 + 日核
+        g.setFill(new RadialGradient(0, 0, 585, 140, 260, false, CycleMethod.NO_CYCLE,
+                new Stop(0, Color.web("#fff8dc", 0.95)),
+                new Stop(0.4, Color.web("#ffedb0", 0.38)),
+                new Stop(1, Color.web("#ffedb0", 0))));
+        g.fillOval(325, -120, 520, 520);
+        g.setFill(Color.web("#fffdf2"));
+        g.fillOval(585 - 34, 140 - 34, 68, 68);
 
-        // 3. 远山两层
-        drawMountains(g, 430, 0.5, Color.web("#7fa86f", 0.55));
-        drawMountains(g, 480, 0.75, Color.web("#5d8a52", 0.7));
-
-        // 4. 侧边树影
-        drawTree(g, 30, 560, 52, 210, 130);
-        drawTree(g, 780, 500, 44, 180, 110);
-        drawTree(g, 762, 660, 38, 150, 95);
-        drawTree(g, 12, 720, 30, 140, 85);
-
-        // 5. 底部草地
-        LinearGradient grass = new LinearGradient(0, 600, 0, 900, false, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.web("#7fae57")),
-                new Stop(0.45, Color.web("#5d9440")),
-                new Stop(1, Color.web("#3c6e2e")));
-        g.setFill(grass);
-        g.fillRect(0, 600, 800, 300);
-
-        // 草地上的小草笔触
-        g.setStroke(Color.web("#a9d17e", 0.7));
-        g.setLineWidth(2);
-        for (int i = 0; i < 60; i++) {
-            double x = rnd.nextDouble() * 800;
-            double y = 620 + rnd.nextDouble() * 260;
-            double h = 8 + rnd.nextDouble() * 14;
-            g.beginPath();
-            g.moveTo(x, y);
-            g.quadraticCurveTo(x + (rnd.nextDouble() - 0.5) * 6, y - h * 0.6, x + (rnd.nextDouble() - 0.5) * 8, y - h);
-            g.stroke();
+        // 3. 斜射光柱（自太阳向左下）
+        double[] angles = {-52, -36, -21, -7, 8};
+        double[] widths = {44, 58, 50, 64, 40};
+        for (int i = 0; i < angles.length; i++) {
+            drawRay(g, 585, 140, angles[i], 620 + i * 30, widths[i], 0.10 + (i % 2) * 0.04);
         }
+
+        // 4. 三层远山（大气透视：远淡近深，圆润山脊）
+        drawRidge(g, 452, 95, Color.web("#b7d4c2", 0.92));
+        drawRidge(g, 512, 125, Color.web("#8fb89b", 0.95));
+        drawRidge(g, 572, 150, Color.web("#67997a"));
+
+        // 5. 山谷雾带
+        drawMist(g, 468, 54, 0.16);
+        drawMist(g, 528, 60, 0.19);
+        drawMist(g, 592, 70, 0.22);
+
+        // 6. 中景林线剪影
+        drawTreeline(g, 600, Color.web("#4a7d54"));
+
+        // 7. 草地
+        g.setFill(new LinearGradient(0, 620, 0, 900, false, CycleMethod.NO_CYCLE,
+                new Stop(0, Color.web("#93c06b")),
+                new Stop(0.45, Color.web("#63a047")),
+                new Stop(1, Color.web("#3f7434"))));
+        g.fillRect(0, 618, 800, 282);
+
+        // 8. 前景框景树影（左右两侧，压住画面边缘）
+        drawFramingTree(g, true);
+        drawFramingTree(g, false);
+
+        // 10. 草丛与野花点缀
+        drawGrassTufts(g);
+        drawFlowerSpecks(g);
+
+        // 11. 四角暗角
+        drawCornerVignette(g, 0, 0);
+        drawCornerVignette(g, 800, 0);
+        drawCornerVignette(g, 0, 900);
+        drawCornerVignette(g, 800, 900);
     }
 
-    private void drawMountains(GraphicsContext g, int baseY, double ampScale, Color color) {
-        int peaks = 7;
-        double[] heights = new double[peaks];
-        for (int i = 0; i < peaks; i++) {
-            heights[i] = (70 + rnd.nextDouble() * 130) * ampScale;
+    /** 斜射光柱：绕太阳旋转的渐变楔形。 */
+    private void drawRay(GraphicsContext g, double sx, double sy,
+                         double angleDeg, double len, double width, double alpha) {
+        g.save();
+        g.translate(sx, sy);
+        g.rotate(angleDeg);
+        g.setFill(new LinearGradient(0, 0, len, 0, false, CycleMethod.NO_CYCLE,
+                new Stop(0, Color.web("#fff4cc", alpha)),
+                new Stop(1, Color.web("#fff4cc", 0))));
+        g.fillRect(0, -width / 2, len, width);
+        g.restore();
+    }
+
+    /** 圆润山脊：随机峰点 + 二次曲线平滑连接，填充到画布底部。 */
+    private void drawRidge(GraphicsContext g, double baseY, double amp, Color color) {
+        int n = 9;
+        double[] xs = new double[n + 2];
+        double[] ys = new double[n + 2];
+        for (int i = 0; i <= n + 1; i++) {
+            xs[i] = -40 + i * (880.0 / n);
+            ys[i] = baseY - rnd.nextDouble() * amp;
         }
         g.beginPath();
-        g.moveTo(0, baseY);
-        for (int i = 0; i < peaks; i++) {
-            double x0 = 800.0 * i / peaks;
-            double x1 = 800.0 * (i + 1) / peaks;
-            double midX = (x0 + x1) / 2;
-            g.lineTo(midX, baseY - heights[i]);
-            g.lineTo(x1, baseY - heights[i] * (0.35 + rnd.nextDouble() * 0.3));
+        g.moveTo(xs[0], 900);
+        g.lineTo(xs[0], ys[0]);
+        for (int i = 1; i <= n + 1; i++) {
+            double cx = (xs[i - 1] + xs[i]) / 2;
+            double cy = Math.min(ys[i - 1], ys[i]) - rnd.nextDouble() * amp * 0.35;
+            g.quadraticCurveTo(cx, cy, xs[i], ys[i]);
         }
-        g.lineTo(800, 900);
-        g.lineTo(0, 900);
+        g.lineTo(xs[n + 1], 900);
         g.closePath();
         g.setFill(color);
         g.fill();
     }
 
-    private void drawTree(GraphicsContext g, double x, double groundY, double trunkW, double trunkH, double crownR) {
+    /** 柔和雾带：垂直渐变白带。 */
+    private void drawMist(GraphicsContext g, double y, double h, double alpha) {
+        g.setFill(new LinearGradient(0, y - h / 2, 0, y + h / 2, false, CycleMethod.NO_CYCLE,
+                new Stop(0, Color.web("#ffffff", 0)),
+                new Stop(0.5, Color.web("#ffffff", alpha)),
+                new Stop(1, Color.web("#ffffff", 0))));
+        g.fillRect(0, y - h / 2, 800, h);
+    }
+
+    /** 中景林线：树冠圆簇连绵 + 底部填充。 */
+    private void drawTreeline(GraphicsContext g, double baseY, Color color) {
+        g.setFill(color);
+        double x = -20;
+        while (x < 820) {
+            double r = 24 + rnd.nextDouble() * 26;
+            double cy = baseY - rnd.nextDouble() * 22;
+            g.fillOval(x - r, cy - r, r * 2, r * 2);
+            x += r * 0.9;
+        }
+        g.fillRect(0, baseY, 800, 660 - baseY + 40);
+    }
+
+    /** 前景框景树：弯曲树干 + 双色树冠簇 + 朝阳侧微高光。 */
+    private void drawFramingTree(GraphicsContext g, boolean left) {
+        double trunkX = left ? 14 : 762;
+        double canopyCx = left ? 58 : 742;
+        double canopyCy = left ? 430 : 396;
+
         // 树干
-        g.setFill(Color.web("#5b3d22"));
-        g.fillRoundRect(x - trunkW / 2, groundY - trunkH, trunkW, trunkH, 10, 10);
-        g.setFill(Color.web("#6e4a28"));
-        g.fillRoundRect(x - trunkW / 2 + 3, groundY - trunkH + 4, trunkW - 6, trunkH - 8, 8, 8);
-        // 树冠（圆形簇）
-        Color[] greens = {Color.web("#2f5d33"), Color.web("#3a6d3e"), Color.web("#275229"), Color.web("#43784a")};
-        double cx = x;
-        double cy = groundY - trunkH - crownR * 0.45;
-        for (int i = 0; i < 5; i++) {
-            double ox = (rnd.nextDouble() - 0.5) * crownR * 1.4;
-            double oy = (rnd.nextDouble() - 0.5) * crownR * 0.9;
-            double r = crownR * (0.55 + rnd.nextDouble() * 0.45);
-            g.setFill(greens[rnd.nextInt(greens.length)]);
-            g.fillOval(cx + ox - r, cy + oy - r, r * 2, r * 2);
+        g.setFill(new LinearGradient(trunkX, 0, trunkX + 40, 0, false, CycleMethod.NO_CYCLE,
+                new Stop(0, Color.web("#3a2a18")),
+                new Stop(1, Color.web("#55402a"))));
+        g.fillRoundRect(trunkX, canopyCy + 40, 38, 900 - (canopyCy + 40), 14, 14);
+
+        // 树冠簇（深色为主）
+        Color[] darks = {Color.web("#2f5d33"), Color.web("#27502a"), Color.web("#356a3a")};
+        for (int i = 0; i < 9; i++) {
+            double a = rnd.nextDouble() * Math.PI * 2;
+            double d = rnd.nextDouble() * 62;
+            double r = 42 + rnd.nextDouble() * 52;
+            g.setFill(darks[rnd.nextInt(darks.length)]);
+            g.fillOval(canopyCx + Math.cos(a) * d - r, canopyCy + Math.sin(a) * d * 0.72 - r,
+                    r * 2, r * 2);
+        }
+        // 朝阳侧高光簇（柔和、小而偏）
+        double hiDir = left ? 1 : -1;
+        for (int i = 0; i < 3; i++) {
+            double r = 13 + rnd.nextDouble() * 12;
+            g.setFill(Color.web("#7cba6e", 0.22));
+            g.fillOval(canopyCx + hiDir * (30 + rnd.nextDouble() * 34) - r,
+                    canopyCy - 36 + rnd.nextDouble() * 64 - r, r * 2, r * 2);
         }
     }
 
-    private void addVignette(GraphicsContext g, double cx, double cy) {
-        // 已弃用：四角暗角被移除
+    /** 草丛笔触（双色）。 */
+    private void drawGrassTufts(GraphicsContext g) {
+        for (int i = 0; i < 90; i++) {
+            double x = rnd.nextDouble() * 800;
+            double y = 640 + rnd.nextDouble() * 250;
+            double h = 10 + rnd.nextDouble() * 18;
+            g.setStroke(rnd.nextBoolean()
+                    ? Color.web("#b9dd8e", 0.7)
+                    : Color.web("#56923f", 0.8));
+            g.setLineWidth(1.6);
+            g.beginPath();
+            g.moveTo(x, y);
+            g.quadraticCurveTo(x + (rnd.nextDouble() - 0.5) * 8, y - h * 0.6,
+                    x + (rnd.nextDouble() - 0.5) * 12, y - h);
+            g.stroke();
+        }
+    }
+
+    /** 野花微点。 */
+    private void drawFlowerSpecks(GraphicsContext g) {
+        for (int i = 0; i < 26; i++) {
+            double x = rnd.nextDouble() * 800;
+            double y = 650 + rnd.nextDouble() * 230;
+            g.setFill(rnd.nextBoolean()
+                    ? Color.web("#f2e18c", 0.65)
+                    : Color.web("#ffffff", 0.55));
+            g.fillOval(x, y, 2.4, 2.4);
+        }
+    }
+
+    private void drawCornerVignette(GraphicsContext g, double cx, double cy) {
+        g.setFill(new RadialGradient(0, 0, cx, cy, 460, false, CycleMethod.NO_CYCLE,
+                new Stop(0, Color.rgb(16, 28, 16, 0.26)),
+                new Stop(1, Color.rgb(16, 28, 16, 0))));
+        g.fillOval(cx - 460, cy - 460, 920, 920);
     }
 }

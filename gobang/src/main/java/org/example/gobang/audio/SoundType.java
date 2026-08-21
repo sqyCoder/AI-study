@@ -16,6 +16,8 @@ public enum SoundType {
     GUESS_REVEAL("guess_reveal", 1),
     GUESS_RESULT_WIN("guess_result_win", 1),
     GUESS_RESULT_LOSE("guess_result_lose", 1),
+    PAGE_SWITCH("page_switch", 1),
+    /** 环境风（原落叶沙沙，spec2 §5.3 语义升级）。 */
     LEAF_RUSTLE("leaf_rustle", 1);
 
     public final String base;

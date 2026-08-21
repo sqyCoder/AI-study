@@ -1,5 +1,6 @@
 package org.example.gobang.fx;
 
+import javafx.animation.TranslateTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -12,6 +13,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.util.Duration;
 
 import org.example.gobang.audio.SettingsStore;
 import org.example.gobang.logic.GameSession;
@@ -19,7 +21,8 @@ import org.example.gobang.logic.GameSession;
 import java.util.function.BiConsumer;
 
 /**
- * 主菜单：标题「五子棋」→「人机对战」「双人对战」→ 难度三选一（默认中等）→「开始对局」。
+ * 主菜单（spec2 阶段A 精修）：
+ * 标题书法字体 + 悬浮呼吸；模式/难度/开始三按钮金系；
  * 页脚标注「制作：林森lsjs」，右上角齿轮进设置。
  */
 public class MenuView {
@@ -29,9 +32,12 @@ public class MenuView {
     private final GameSession.Difficulty[] difficulty = new GameSession.Difficulty[1];
     private final SettingsPanel settingsPanel;
     private final HBox diffBox = new HBox(16);
+    private final Runnable onOpenLobby;
 
     public MenuView(ForestBackground bg, SettingsStore settings,
-                    BiConsumer<GameSession.Mode, GameSession.Difficulty> onStart) {
+                    BiConsumer<GameSession.Mode, GameSession.Difficulty> onStart,
+                    Runnable onOpenLobby) {
+        this.onOpenLobby = onOpenLobby;
         settingsPanel = new SettingsPanel(root, settings);
         mode[0] = GameSession.Mode.PVE;
         difficulty[0] = GameSession.Difficulty.MEDIUM;
@@ -42,42 +48,8 @@ public class MenuView {
         return root;
     }
 
-    private static final String BTN_STYLE =
-            "-fx-background-color: linear-gradient(to bottom, #f2dcae, #d9b378);"
-            + "-fx-background-radius: 16; -fx-border-color: #8a6a3a; -fx-border-radius: 16;"
-            + "-fx-border-width: 1.5; -fx-font-family: '" + Ui.FONT + "'; -fx-font-weight: bold;"
-            + "-fx-text-fill: #4a3010; -fx-cursor: hand; -fx-focus-traversable: false;"
-            + "-fx-padding: 10 24 10 24; -fx-font-size: 26px;";
-    private static final String BTN_HOVER =
-            "-fx-background-color: linear-gradient(to bottom, #ffe8bc, #e6c384);"
-            + "-fx-background-radius: 16; -fx-border-color: #8a6a3a; -fx-border-radius: 16;"
-            + "-fx-border-width: 1.5; -fx-font-family: '" + Ui.FONT + "'; -fx-font-weight: bold;"
-            + "-fx-text-fill: #4a3010; -fx-cursor: hand; -fx-focus-traversable: false;"
-            + "-fx-padding: 10 24 10 24; -fx-font-size: 26px;";
-    private static final String BTN_PRESSED =
-            "-fx-background-color: linear-gradient(to bottom, #c99d5e, #b0813f);"
-            + "-fx-background-radius: 16; -fx-border-color: #6e4f28; -fx-border-radius: 16;"
-            + "-fx-border-width: 1.5; -fx-font-family: '" + Ui.FONT + "'; -fx-font-weight: bold;"
-            + "-fx-text-fill: #3c2608; -fx-cursor: hand; -fx-focus-traversable: false;"
-            + "-fx-padding: 10 24 10 24; -fx-font-size: 26px;";
-    private static final String BTN_SELECTED = "-fx-background-color: #8fbf4f; -fx-text-fill: white;"
-            + "-fx-background-radius: 16; -fx-border-color: #4c6b26; -fx-border-radius: 16;"
-            + "-fx-border-width: 1.5; -fx-font-family: '" + Ui.FONT + "'; -fx-font-weight: bold;"
-            + "-fx-cursor: hand; -fx-focus-traversable: false;"
-            + "-fx-padding: 10 24 10 24; -fx-font-size: 26px;";
-
-    private void applyModeStyle(Button b, boolean selected) {
-        String style = selected ? BTN_SELECTED : BTN_STYLE;
-        String hover = selected ? BTN_SELECTED : BTN_HOVER;
-        String pressed = selected ? BTN_SELECTED : BTN_PRESSED;
-        b.setStyle(style);
-        b.setOnMouseEntered(e -> b.setStyle(hover));
-        b.setOnMouseExited(e -> b.setStyle(style));
-        b.setOnMousePressed(e -> b.setStyle(pressed));
-        b.setOnMouseReleased(e -> b.setStyle(b.isHover() ? hover : style));
-    }
-
     private void build(ForestBackground bg, BiConsumer<GameSession.Mode, GameSession.Difficulty> onStart) {
+        Theme.applyCss(root);
         root.getChildren().add(bg.getNode());
 
         // 顶部：齿轮进设置
@@ -92,35 +64,42 @@ public class MenuView {
         // 中间：标题 + 按钮
         VBox center = new VBox(22);
         center.setAlignment(Pos.CENTER);
-        center.setTranslateY(-30);
 
-        Label title = new Label("五子棋");
-        title.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 84px; -fx-font-weight: bold;"
-                + "-fx-text-fill: #f7ecd0;");
-        title.setEffect(new DropShadow(18, Color.rgb(30, 20, 5, 0.75)));
+        Label title = Theme.titleLabel("五子棋", 84, Theme.CREAM);
+        title.setEffect(new DropShadow(22, Color.rgb(0, 0, 0, 0.8)));
+        // 标题悬浮呼吸
+        TranslateTransition floatTt = new TranslateTransition(Duration.millis(2600), title);
+        floatTt.setFromY(0);
+        floatTt.setToY(-7);
+        floatTt.setAutoReverse(true);
+        floatTt.setCycleCount(TranslateTransition.INDEFINITE);
+        floatTt.setInterpolator(javafx.animation.Interpolator.EASE_BOTH);
+        floatTt.play();
 
-        Label sub = new Label("林间对弈 · 落子有声");
-        sub.setStyle("-fx-font-family: '" + Ui.FONT + "'; -fx-font-size: 20px; -fx-text-fill: #e8d9b0;"
-                + "-fx-effect: dropshadow(gaussian, rgba(30,20,5,0.7), 6, 0, 1, 1);");
+        Label sub = Theme.label("林间对弈 · 落子有声", 20, "#4a3520", true);
+        sub.setStyle(sub.getStyle()
+                + "-fx-effect: dropshadow(gaussian, rgba(255,250,230,0.85), 8, 0, 0, 1);");
 
         HBox modeRow = new HBox(24);
         modeRow.setAlignment(Pos.CENTER);
         Button pve = Ui.styledButton("人机对战", 26);
         Button pvp = Ui.styledButton("双人对战", 26);
-        applyModeStyle(pve, true);
-        applyModeStyle(pvp, false);
-        modeRow.getChildren().addAll(pve, pvp);
+        Button online = Ui.styledButton("联机对战", 26);
+        markSelected(pve, true);
+        markSelected(pvp, false);
+        modeRow.getChildren().addAll(pve, pvp, online);
+        online.setOnAction(e -> onOpenLobby.run());
         pve.setOnAction(e -> {
             mode[0] = GameSession.Mode.PVE;
-            applyModeStyle(pve, true);
-            applyModeStyle(pvp, false);
+            markSelected(pve, true);
+            markSelected(pvp, false);
             diffBox.setVisible(true);
             diffBox.setManaged(true);
         });
         pvp.setOnAction(e -> {
             mode[0] = GameSession.Mode.PVP;
-            applyModeStyle(pvp, true);
-            applyModeStyle(pve, false);
+            markSelected(pvp, true);
+            markSelected(pve, false);
             diffBox.setVisible(false);
             diffBox.setManaged(false);
         });
@@ -150,5 +129,12 @@ public class MenuView {
         bottom.getChildren().add(Ui.makerLabel());
         StackPane.setAlignment(bottom, Pos.BOTTOM_CENTER);
         root.getChildren().add(bottom);
+    }
+
+    /** 选中态：金色描边加亮 + 轻微放大，未选恢复。 */
+    private void markSelected(Button b, boolean selected) {
+        b.setScaleX(selected ? 1.04 : 1.0);
+        b.setScaleY(selected ? 1.04 : 1.0);
+        b.setOpacity(selected ? 1.0 : 0.82);
     }
 }

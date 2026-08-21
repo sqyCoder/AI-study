@@ -15,7 +15,7 @@ import java.util.List;
  */
 public class GameSession {
 
-    public enum Mode { PVE, PVP }
+    public enum Mode { PVE, PVP, ONLINE }
 
     public enum Difficulty { EASY, MEDIUM, HARD }
 

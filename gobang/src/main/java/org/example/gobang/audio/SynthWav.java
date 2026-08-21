@@ -5,17 +5,18 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Random;
 
 /**
- * 素材缺失时的回退方案（spec §9）：用 Java 纯代码合成全部音效与 BGM，
- * 写入临时目录缓存为 WAV 文件，游戏照常可玩且音效完整。
+ * 音频合成引擎 2.0（spec2 §5）：
+ * 立体声 WAV（44100/16bit/双声道）+ Schroeder 混响（干湿比按音效配置）
+ * + Karplus-Strong 拨弦 + tanh 软限幅；缓存于临时目录 gobang_synth_v5
+ * （v4.3：落子音重做——中频敲击主体提升全喇叭可闻度，混响减半防稀释）。
+ * 素材缺失时的回退方案：生成失败返回 null，游戏静默跳过照常可玩。
  */
 public final class SynthWav {
 
-    public static final int RATE = 44100;
-    private static final Path DIR = Paths.get(System.getProperty("java.io.tmpdir"), "gobang_synth_v3");
-    private static final Random RND = new Random(20260820);
+    public static final int RATE = Dsp.RATE;
+    private static final Path DIR = Paths.get(System.getProperty("java.io.tmpdir"), "gobang_synth_v5");
 
     private SynthWav() {
     }
@@ -26,9 +27,11 @@ public final class SynthWav {
             Files.createDirectories(DIR);
             Path f = DIR.resolve(fileName);
             if (!Files.exists(f)) {
-                double[] samples = synthesize(fileName);
-                if (samples == null) return null;
-                Files.write(f, wavBytes(samples));
+                double[][] st = synthesize(fileName);
+                if (st == null) {
+                    return null;
+                }
+                Files.write(f, wavBytesStereo(st[0], st[1]));
             }
             return f.toUri().toString();
         } catch (IOException | RuntimeException e) {
@@ -36,298 +39,404 @@ public final class SynthWav {
         }
     }
 
-    private static double[] synthesize(String name) {
-        if (name.startsWith("stone_black_")) return stoneBlack();
-        if (name.startsWith("stone_white_")) return stoneWhite();
+    /** 后台预热：把全部音效/BGM 一次性生成进缓存（Main 启动线程调用）。 */
+    public static void preloadAll() {
+        for (org.example.gobang.audio.SoundType t : org.example.gobang.audio.SoundType.values()) {
+            for (int i = 1; i <= t.variants; i++) {
+                urlFor(t.fileName(i));
+            }
+        }
+        urlFor("bgm_chinese.wav");
+        urlFor("bgm_forest.wav");
+    }
+
+    // ---------- 配方分发 ----------
+
+    private static double[][] synthesize(String name) {
+        if (name.startsWith("stone_black_")) {
+            return finish(stoneBlack(), 0.08, -0.08);
+        }
+        if (name.startsWith("stone_white_")) {
+            return finish(stoneWhite(), 0.06, 0.08);
+        }
         switch (name) {
-            case "win.wav": return win();
-            case "lose.wav": return lose();
-            case "draw.wav": return draw();
-            case "click.wav": return click();
-            case "hover.wav": return hover();
-            case "undo.wav": return undo();
-            case "invalid.wav": return invalid();
-            case "guess_hold.wav": return guessHold();
-            case "guess_pick.wav": return guessPick();
-            case "guess_reveal.wav": return guessReveal();
-            case "guess_result_win.wav": return guessResultWin();
-            case "guess_result_lose.wav": return guessResultLose();
-            case "leaf_rustle.wav": return leafRustle();
-            case "bgm_chinese.wav": return bgmChinese();
-            case "bgm_forest.wav": return bgmForest();
+            case "win.wav": return finish(win(), 0.34, 0);
+            case "lose.wav": return finish(lose(), 0.30, 0);
+            case "draw.wav": return finish(draw(), 0.20, 0);
+            case "click.wav": return finish(click(), 0.06, 0);
+            case "hover.wav": return finish(hover(), 0, 0);
+            case "undo.wav": return finish(undo(), 0.12, 0);
+            case "invalid.wav": return finish(invalid(), 0.10, 0);
+            case "guess_hold.wav": return finish(guessHold(), 0.18, 0);
+            case "guess_pick.wav": return finish(guessPick(), 0.10, 0);
+            case "guess_reveal.wav": return finish(guessReveal(), 0.22, 0);
+            case "guess_result_win.wav": return finish(guessResultWin(), 0.25, 0);
+            case "guess_result_lose.wav": return finish(guessResultLose(), 0.25, 0);
+            case "page_switch.wav": return finish(pageSwitch(), 0.12, 0);
+            case "leaf_rustle.wav": return finish(leafRustle(), 0.30, 0.3);
+            case "bgm_chinese.wav": return finish(bgmChinese(), 0.10, 0);
+            case "bgm_forest.wav": return finish(bgmForest(), 0.06, 0);
             default: return null;
         }
     }
 
-    // ---------- 基础合成单元 ----------
-
-    private static double[] buffer(double sec) {
-        return new double[(int) (RATE * sec)];
-    }
-
-    private static void addTone(double[] buf, int start, int dur, double freq, double amp, double decaySec, double attackSec) {
-        int n = Math.min(dur, buf.length - start);
-        if (n <= 0) return;
-        double tau = Math.max(1, decaySec * RATE);
-        double att = Math.max(1, attackSec * RATE);
-        double phase = 0;
-        for (int i = 0; i < n; i++) {
-            double env = Math.exp(-i / tau);
-            if (i < att) env *= i / att;
-            buf[start + i] += amp * env * Math.sin(phase);
-            phase += 2 * Math.PI * freq / RATE;
-        }
-    }
-
-    private static void addSweep(double[] buf, int start, int dur, double f0, double f1, double amp, double decaySec) {
-        int n = Math.min(dur, buf.length - start);
-        if (n <= 0) return;
-        double tau = Math.max(1, decaySec * RATE);
-        double phase = 0;
-        for (int i = 0; i < n; i++) {
-            double freq = f0 + (f1 - f0) * i / n;
-            buf[start + i] += amp * Math.exp(-i / tau) * Math.sin(phase);
-            phase += 2 * Math.PI * freq / RATE;
-        }
-    }
-
-    private static void addNoise(double[] buf, int start, int dur, double amp, double decaySec, double attackSec) {
-        int n = Math.min(dur, buf.length - start);
-        if (n <= 0) return;
-        double tau = Math.max(1, decaySec * RATE);
-        double att = Math.max(1, attackSec * RATE);
-        for (int i = 0; i < n; i++) {
-            double env = Math.exp(-i / tau);
-            if (i < att) env *= i / att;
-            buf[start + i] += amp * env * (RND.nextDouble() * 2 - 1);
-        }
-    }
-
-    /** 木鱼式鼓点：低频正弦快衰减 + 噪声冲击。 */
-    private static void addDrum(double[] buf, int start, double freq, double amp) {
-        int dur = (int) (RATE * 0.28);
-        addTone(buf, start, dur, freq, amp, 0.09, 0.002);
-        addTone(buf, start, dur / 2, freq * 1.6, amp * 0.3, 0.05, 0.002);
-        addNoise(buf, start, (int) (RATE * 0.05), amp * 0.35, 0.02, 0.002);
-    }
-
-    /** 古筝式拨弦：基频 + 泛音，指数衰减。 */
-    private static void addPluck(double[] buf, int start, double freq, double amp) {
-        int dur = (int) (RATE * 1.1);
-        addTone(buf, start, dur, freq, amp, 0.5, 0.004);
-        addTone(buf, start, dur, freq * 2, amp * 0.35, 0.3, 0.004);
-        addTone(buf, start, dur, freq * 3, amp * 0.15, 0.2, 0.004);
-    }
-
-    private static void addChord(double[] buf, int start, double[] freqs, double amp) {
-        for (double f : freqs) {
-            addTone(buf, start, (int) (RATE * 0.6), f, amp, 0.25, 0.01);
-        }
-    }
-
-    private static double[] normalize(double[] buf, double peak) {
+    /** 单声道 → 立体声：混响（右声道 +13 样本去相关）+ 声像 + 全局归一。 */
+    private static double[][] finish(double[] mono, double wet, double pan) {
+        double gl = Math.cos((pan + 1) * Math.PI / 4);
+        double gr = Math.sin((pan + 1) * Math.PI / 4);
+        double[] l = Dsp.reverb(mono, wet, 0);
+        double[] r = Dsp.reverb(mono, wet, 13);
         double max = 0;
-        for (double v : buf) {
-            max = Math.max(max, Math.abs(v));
+        for (int i = 0; i < l.length; i++) {
+            l[i] *= gl;
+            r[i] *= gr;
+            max = Math.max(max, Math.max(Math.abs(l[i]), Math.abs(r[i])));
         }
-        if (max <= 0) return buf;
-        double k = peak / max;
-        for (int i = 0; i < buf.length; i++) {
-            buf[i] *= k;
+        if (max > 0) {
+            double k = 0.9 / max;
+            for (int i = 0; i < l.length; i++) {
+                l[i] *= k;
+                r[i] *= k;
+            }
         }
-        return buf;
+        return new double[][]{l, r};
     }
 
-    // ---------- 各音效 ----------
+    // ---------- 音效配方（spec2 §5.3） ----------
 
+    /** 黑子：亮木敲击（中频主体，全喇叭可闻）+ 木腔共鸣 + 厚 thump。 */
     private static double[] stoneBlack() {
-        double[] b = buffer(0.3);
-        addTone(b, 0, (int) (RATE * 0.3), 96, 0.9, 0.09, 0.002);
-        addTone(b, 0, (int) (RATE * 0.16), 192, 0.35, 0.05, 0.002);
-        addNoise(b, 0, (int) (RATE * 0.03), 0.22, 0.012, 0.001);
-        return normalize(b, 0.9);
+        double[] b = Dsp.buffer(0.45);
+        // 攻击瞬态：更亮更长（2.2kHz / 18ms）
+        Dsp.addBandBurst(b, 0, 2200 + (DspSeed.next() - 0.5) * 700, 0.018, 1.0, 0.004);
+        // 中频敲击主体（~950Hz，小喇叭的可闻核心），衰减 110ms
+        double k = 950 * (1 + (DspSeed.next() - 0.5) * 0.06);
+        Dsp.addHarmonicTone(b, 0, k, 0.30, 0.55, 0.11, 0.001, new double[]{0, 0.5, 0.25});
+        // 木腔共鸣（175Hz）加长增强
+        double f0 = 175 * (1 + (DspSeed.next() - 0.5) * 0.04);
+        Dsp.addHarmonicTone(b, 0, f0, 0.22, 0.5, 0.09, 0.001, new double[]{0, 0.4});
+        // 低频 thump
+        Dsp.addTone(b, 0, 82, 0.12, 0.55, 0.04, 0.001);
+        return b;
     }
 
+    /** 白子：更亮更脆（1.25kHz 敲击主体 + 高频 tick）。 */
     private static double[] stoneWhite() {
-        double[] b = buffer(0.18);
-        addTone(b, 0, (int) (RATE * 0.16), 660, 0.7, 0.035, 0.002);
-        addTone(b, 0, (int) (RATE * 0.08), 1320, 0.3, 0.02, 0.002);
-        addNoise(b, 0, (int) (RATE * 0.012), 0.25, 0.006, 0.001);
-        return normalize(b, 0.9);
+        double[] b = Dsp.buffer(0.35);
+        Dsp.addBandBurst(b, 0, 3200 + (DspSeed.next() - 0.5) * 900, 0.016, 1.0, 0.003);
+        double k = 1250 * (1 + (DspSeed.next() - 0.5) * 0.06);
+        Dsp.addHarmonicTone(b, 0, k, 0.24, 0.5, 0.085, 0.001, new double[]{0, 0.45, 0.2});
+        Dsp.addTone(b, 0, 235, 0.16, 0.45, 0.055, 0.001);
+        Dsp.addTone(b, 0, 95, 0.09, 0.3, 0.03, 0.001);
+        Dsp.addTone(b, 0, 4200, 0.006, 0.35, 0.0015, 0.0005);
+        return b;
     }
 
+    /** 胜利：五声上行琶音 + D 大三和弦 KS 长音 + 高频 shimmer。 */
     private static double[] win() {
-        double[] b = buffer(1.2);
-        double[] notes = {523.25, 659.25, 783.99, 1046.5};
-        for (int i = 0; i < notes.length; i++) {
-            int start = (int) (RATE * (0.10 + i * 0.12));
-            addTone(b, start, (int) (RATE * 0.5), notes[i], 0.5, 0.18, 0.008);
+        double[] b = Dsp.buffer(2.6);
+        double[] arp = {587.33, 739.99, 880.0, 987.77, 1174.66}; // D5 F#5 A5 B5 D6
+        for (int i = 0; i < arp.length; i++) {
+            Dsp.mix(b, Dsp.ksPluck(arp[i], 1.2, 0.9975, 0.6), (int) (RATE * (0.05 + i * 0.11)), 0.55);
         }
-        addChord(b, (int) (RATE * 0.58), notes, 0.4);
-        return normalize(b, 0.9);
+        double[] chord = {587.33, 739.99, 880.0};
+        for (int i = 0; i < chord.length; i++) {
+            Dsp.mix(b, Dsp.ksPluck(chord[i], 1.8, 0.9975, 0.6),
+                    (int) (RATE * (0.62 + i * 0.015)), 0.38);
+        }
+        double[] shim = {2349.3, 2637.0, 3136.0};
+        for (int i = 0; i < shim.length; i++) {
+            Dsp.mix(b, Dsp.ksPluck(shim[i], 1.2, 0.998, 0.7),
+                    (int) (RATE * (0.70 + i * 0.03)), 0.08);
+        }
+        return Dsp.normalize(b, 0.95);
     }
 
+    /** 失败：古琴低音下行 A2 F2 D2。 */
     private static double[] lose() {
-        double[] b = buffer(1.1);
-        double[] notes = {392.0, 329.63, 261.63};
+        double[] b = Dsp.buffer(1.8);
+        double[] notes = {110.0, 87.31, 73.42};
         for (int i = 0; i < notes.length; i++) {
-            int start = (int) (RATE * (0.10 + i * 0.24));
-            addTone(b, start, (int) (RATE * 0.5), notes[i], 0.5, 0.25, 0.01);
+            Dsp.mix(b, Dsp.ksPluck(notes[i], 1.4, 0.992, 0.35),
+                    (int) (RATE * (0.05 + i * 0.26)), 0.75);
         }
-        return normalize(b, 0.85);
+        return Dsp.normalize(b, 0.9);
     }
 
+    /** 平局：中性 KS 双音。 */
     private static double[] draw() {
-        double[] b = buffer(0.7);
-        addTone(b, 0, (int) (RATE * 0.35), 261.63, 0.5, 0.15, 0.008);
-        addTone(b, (int) (RATE * 0.22), (int) (RATE * 0.4), 392.0, 0.5, 0.18, 0.008);
-        return normalize(b, 0.85);
+        double[] b = Dsp.buffer(1.2);
+        Dsp.mix(b, Dsp.ksPluck(440.0, 1.0, 0.997, 0.6), 0, 0.55);
+        Dsp.mix(b, Dsp.ksPluck(659.26, 1.0, 0.997, 0.6), (int) (RATE * 0.18), 0.5);
+        return Dsp.normalize(b, 0.85);
     }
 
+    /** 按钮：木琴双音（两组随机）。 */
     private static double[] click() {
-        double[] b = buffer(0.06);
-        addTone(b, 0, (int) (RATE * 0.05), 1800, 0.7, 0.015, 0.001);
-        return normalize(b, 0.7);
+        double[] b = Dsp.buffer(0.12);
+        boolean alt = DspSeed.next() < 0.5;
+        double f1 = alt ? 880 : 988, f2 = alt ? 1320 : 1480;
+        Dsp.addTone(b, 0, f1, 0.05, 0.6, 0.028, 0.001);
+        Dsp.addTone(b, (int) (RATE * 0.03), f2, 0.06, 0.45, 0.03, 0.001);
+        Dsp.addNoise(b, 0, 0.002, 0.25, 0.001, 0.0005);
+        return Dsp.normalize(b, 0.7);
     }
 
+    /** 悬停：极短噪声 tick。 */
     private static double[] hover() {
-        double[] b = buffer(0.05);
-        addTone(b, 0, (int) (RATE * 0.04), 1400, 0.5, 0.012, 0.001);
-        return normalize(b, 0.5);
+        double[] b = Dsp.buffer(0.02);
+        Dsp.addNoise(b, 0, 0.004, 0.6, 0.002, 0.0005);
+        return Dsp.normalize(b, 0.5);
     }
 
+    /** 悔棋：下滑音 + 轻噪尾。 */
     private static double[] undo() {
-        double[] b = buffer(0.22);
-        addTone(b, 0, (int) (RATE * 0.07), 420, 0.6, 0.03, 0.003);
-        addTone(b, (int) (RATE * 0.08), (int) (RATE * 0.1), 640, 0.55, 0.04, 0.003);
-        return normalize(b, 0.8);
+        double[] b = Dsp.buffer(0.22);
+        Dsp.addSweep(b, 0, 520, 330, 0.12, 0.6, 0.09);
+        Dsp.addNoise(b, (int) (RATE * 0.10), 0.05, 0.15, 0.02, 0.004);
+        return Dsp.normalize(b, 0.8);
     }
 
+    /** 非法落子：双低音警告。 */
     private static double[] invalid() {
-        double[] b = buffer(0.14);
-        addTone(b, 0, (int) (RATE * 0.13), 150, 0.5, 0.05, 0.002);
-        addTone(b, 0, (int) (RATE * 0.1), 300, 0.35, 0.04, 0.002);
-        addTone(b, 0, (int) (RATE * 0.08), 450, 0.25, 0.03, 0.002);
-        return normalize(b, 0.7);
+        double[] b = Dsp.buffer(0.20);
+        Dsp.addHarmonicTone(b, 0, 150, 0.10, 0.55, 0.05, 0.002, new double[]{0, 0, 0.33});
+        Dsp.addHarmonicTone(b, (int) (RATE * 0.07), 118, 0.12, 0.55, 0.06, 0.002, new double[]{0, 0, 0.33});
+        return Dsp.normalize(b, 0.75);
     }
 
+    /** 太鼓握子。 */
     private static double[] guessHold() {
-        double[] b = buffer(0.4);
-        addDrum(b, 0, 90, 0.8);
-        return normalize(b, 0.9);
+        double[] b = Dsp.buffer(0.40);
+        Dsp.addTone(b, 0, 92, 0.22, 0.85, 0.09, 0.002);
+        Dsp.addNoise(b, 0, 0.006, 0.3, 0.003, 0.001);
+        Dsp.addTone(b, 0, 46, 0.30, 0.5, 0.12, 0.002);
+        return Dsp.normalize(b, 0.92);
     }
 
+    /** 木质 clack。 */
     private static double[] guessPick() {
-        double[] b = buffer(0.16);
-        addTone(b, 0, (int) (RATE * 0.06), 950, 0.6, 0.02, 0.002);
-        addTone(b, (int) (RATE * 0.07), (int) (RATE * 0.08), 1450, 0.6, 0.025, 0.002);
-        return normalize(b, 0.8);
+        double[] b = Dsp.buffer(0.14);
+        Dsp.addBandBurst(b, 0, 1400, 0.006, 0.7, 0.003);
+        Dsp.addTone(b, 0, 620, 0.07, 0.6, 0.025, 0.001);
+        return Dsp.normalize(b, 0.8);
     }
 
+    /** 三连鼓揭晓 + 低鼓长尾。 */
     private static double[] guessReveal() {
-        double[] b = buffer(0.85);
-        addDrum(b, 0, 115, 0.7);
-        addDrum(b, (int) (RATE * 0.09), 100, 0.75);
-        addDrum(b, (int) (RATE * 0.18), 85, 0.8);
-        addTone(b, (int) (RATE * 0.27), (int) (RATE * 0.45), 65, 0.85, 0.22, 0.004);
-        addNoise(b, (int) (RATE * 0.27), (int) (RATE * 0.08), 0.3, 0.03, 0.002);
-        return normalize(b, 0.95);
+        double[] b = Dsp.buffer(0.95);
+        double[] f = {96, 84, 72};
+        for (int i = 0; i < 3; i++) {
+            int at = (int) (RATE * i * 0.09);
+            Dsp.addTone(b, at, f[i], 0.20, 0.8, 0.08, 0.002);
+            Dsp.addNoise(b, at, 0.006, 0.28, 0.003, 0.001);
+        }
+        Dsp.addTone(b, (int) (RATE * 0.27), 60, 0.45, 0.85, 0.25, 0.004);
+        Dsp.addNoise(b, (int) (RATE * 0.27), 0.08, 0.3, 0.03, 0.002);
+        return Dsp.normalize(b, 0.95);
     }
 
+    /** 猜先胜：KS 上行 G4 A4 D5。 */
     private static double[] guessResultWin() {
-        double[] b = buffer(0.9);
-        double[] notes = {783.99, 987.77, 1174.66, 1567.98};
+        double[] b = Dsp.buffer(1.1);
+        double[] notes = {392.0, 440.0, 587.33};
         for (int i = 0; i < notes.length; i++) {
-            int start = (int) (RATE * (0.05 + i * 0.09));
-            addTone(b, start, (int) (RATE * 0.4), notes[i], 0.5, 0.2, 0.006);
+            Dsp.mix(b, Dsp.ksPluck(notes[i], 0.9, 0.9975, 0.6),
+                    (int) (RATE * (0.03 + i * 0.09)), 0.55);
         }
-        addChord(b, (int) (RATE * 0.42), notes, 0.35);
-        return normalize(b, 0.9);
+        return Dsp.normalize(b, 0.9);
     }
 
+    /** 猜先败：KS 下行两音。 */
     private static double[] guessResultLose() {
-        double[] b = buffer(0.85);
-        double[] notes = {330.0, 311.13, 293.66};
+        double[] b = Dsp.buffer(1.0);
+        double[] notes = {246.94, 196.0};
         for (int i = 0; i < notes.length; i++) {
-            int start = (int) (RATE * (0.1 + i * 0.2));
-            addTone(b, start, (int) (RATE * 0.45), notes[i], 0.5, 0.22, 0.01);
+            Dsp.mix(b, Dsp.ksPluck(notes[i], 0.9, 0.994, 0.45),
+                    (int) (RATE * (0.05 + i * 0.16)), 0.55);
         }
-        return normalize(b, 0.75);
+        return Dsp.normalize(b, 0.78);
     }
 
+    /** 切页 whoosh：噪声 lowpass 扫频 900→250Hz。 */
+    private static double[] pageSwitch() {
+        int n = (int) (RATE * 0.18);
+        double[] b = new double[n];
+        double v = 0;
+        for (int i = 0; i < n; i++) {
+            double fc = 900 + (250 - 900) * i / n;
+            double g = 1 - Math.exp(-2 * Math.PI * fc / RATE);
+            v = v + g * ((DspSeed.next() * 2 - 1) - v);
+            double env = Math.min(1, i / (0.02 * RATE));
+            if (i > n - 0.06 * RATE) {
+                env *= (n - i) / (0.06 * RATE);
+            }
+            b[i] = v * env * 1.6;
+        }
+        return Dsp.normalize(b, 0.55);
+    }
+
+    /** 环境风（原落叶沙沙，语义升级）。 */
     private static double[] leafRustle() {
-        double[] b = buffer(0.5);
-        addNoise(b, 0, (int) (RATE * 0.5), 0.5, 0.2, 0.08);
-        return normalize(b, 0.5);
+        double[] b = Dsp.brownNoise(1.2, 0.90);
+        Dsp.fadeEdges(b, 0.15);
+        return Dsp.normalize(b, 0.5);
     }
 
-    /** 中国风 BGM：五声音阶拨弦旋律循环（末尾留静音段保证无缝循环）。 */
+    // ---------- BGM v2（spec2 §5.4） ----------
+
+    /** 中国风：D 宫五声古筝 AABA' 八小节 + 分解和弦 + 笛声 + 溪流底噪，约 30s 无缝循环。 */
     private static double[] bgmChinese() {
-        double[] b = buffer(11.5);
-        double[] scale = {587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66}; // D5 E5 G5 A5 C6 D6
-        int[] seq = {0, 1, 2, 3, 1, 4, 2, 5, 3, 2, 1, 0, 3, 1, 2, 4};
-        for (int i = 0; i < seq.length; i++) {
-            int start = (int) (RATE * (0.25 + i * 0.62));
-            double amp = 0.32 + RND.nextDouble() * 0.12;
-            addPluck(b, start, scale[seq[i]] / 2, amp); // 低八度拨弦
-            if (i % 4 == 1) {
-                addPluck(b, start + (int) (RATE * 0.31), scale[(seq[i] + 2) % scale.length] / 2, amp * 0.55);
+        double beat = 60.0 / 64;          // BPM 64
+        int totalBeats = 32;              // 8 小节 4/4
+        double sec = totalBeats * beat;   // 30s
+        double[] b = Dsp.buffer(sec);
+
+        // D 宫五声音高表
+        double D3 = 146.83, A3 = 220.0, D4 = 293.66, E4 = 329.63, FS4 = 369.99, A4 = 440.0,
+                B4 = 493.88, D5 = 587.33, E5 = 659.26, FS5 = 739.99, A5 = 880.0, B5 = 987.77;
+        // {freq, startBeat, durBeats} —— A 段主题（4 小节）
+        double[][] melA = {
+                {D5, 0, 1}, {E5, 1, 0.5}, {FS5, 1.5, 0.5}, {A5, 2, 1}, {B5, 3, 1},
+                {A5, 4, 1}, {FS5, 5, 1}, {E5, 6, 1}, {D5, 7, 1},
+                {E5, 8, 1}, {FS5, 9, 0.5}, {E5, 9.5, 0.5}, {D5, 10, 1}, {B4, 11, 1},
+                {D5, 12, 2}, {A4, 14, 1}, {E5, 15, 1}};
+        // B 段对比句（2 小节）
+        double[][] melB = {
+                {B5, 0, 1}, {A5, 1, 1}, {FS5, 2, 1}, {A5, 3, 1},
+                {E5, 4, 1}, {FS5, 5, 0.5}, {E5, 5.5, 0.5}, {D5, 6, 2}};
+        // 曲式 A(16拍) + B(+16起,8拍) + A'(前半再现,+24起,8拍)
+        playPhrase(b, melA, 0, beat);
+        playPhrase(b, melB, 16, beat);
+        double[][] melA2 = new double[melA.length][];
+        int kept = 0;
+        for (double[] n : melA) {
+            if (n[1] < 8) {
+                melA2[kept++] = n;
             }
         }
-        addNoise(b, 0, (int) (RATE * 0.12), 0.02, 0.05, 0.0); // 极轻的底噪
-        return normalize(b, 0.55);
+        playPhrase(b, java.util.Arrays.copyOf(melA2, kept), 24, beat);
+
+        // 分解和弦伴奏：每小节第 1 拍 D3-A3-D4
+        for (int bar = 0; bar < 8; bar++) {
+            int at = (int) (bar * 4 * beat * RATE);
+            double[] notes = {D3, A3, D4};
+            for (int i = 0; i < notes.length; i++) {
+                Dsp.mix(b, Dsp.ksPluck(notes[i], 0.9, 0.996, 0.55),
+                        at + (int) (i * 0.12 * RATE), 0.18);
+            }
+        }
+
+        // 笛声副旋律（正弦+vibrato）：B 段与 A' 各一长音
+        Dsp.addFlute(b, (int) (18 * beat * RATE), D5, 2 * beat, 0.12);
+        Dsp.addFlute(b, (int) (22 * beat * RATE), E4, 2 * beat, 0.10);
+        Dsp.addFlute(b, (int) (26 * beat * RATE), D5, 2 * beat, 0.12);
+
+        // 溪流底噪
+        double[] stream = Dsp.brownNoise(sec, 0.985);
+        for (int i = 0; i < b.length; i++) {
+            b[i] += stream[i] * 0.05;
+        }
+
+        Dsp.loopCrossfade(b, 0.10); // 首尾 crossfade 保证无缝循环
+        return Dsp.normalize(b, 0.55);
     }
 
-    /** 森林自然音 BGM：棕色噪声溪流 + 鸟鸣，首尾淡入淡出保证无缝。 */
+    private static void playPhrase(double[] dst, double[][] notes, int beatOffset, double beat) {
+        for (double[] n : notes) {
+            double freq = n[0];
+            double startBeat = beatOffset + n[1];
+            double durSec = n[2] * beat + 1.2; // 余韵
+            int at = (int) (startBeat * beat * RATE);
+            if (at >= dst.length) {
+                continue;
+            }
+            Dsp.mix(dst, Dsp.ksPluck(freq, durSec, 0.998, 0.6), at, 0.5);
+        }
+    }
+
+    /** 森林自然音：棕噪溪流 + FM 鸟鸣三组 + 风铃一处，12s 无缝循环。 */
     private static double[] bgmForest() {
-        int len = (int) (RATE * 9.0);
-        double[] b = new double[len];
-        double noise = 0;
+        double sec = 12.0;
+        int len = (int) (sec * RATE);
+        double[] b = Dsp.brownNoise(sec, 0.986);
         for (int i = 0; i < len; i++) {
-            noise = noise * 0.985 + (RND.nextDouble() * 2 - 1) * 0.06;
-            double lfo = 0.75 + 0.25 * Math.sin(2 * Math.PI * i / RATE * 0.22);
-            b[i] = noise * lfo * 0.9;
+            double lfo = 0.75 + 0.25 * Math.sin(2 * Math.PI * i / RATE * 0.18);
+            b[i] *= lfo;
         }
-        // 鸟鸣：3 处，每处两声
-        int[] at = {(int) (RATE * 1.6), (int) (RATE * 4.3), (int) (RATE * 6.8)};
-        for (int a : at) {
-            for (int k = 0; k < 2; k++) {
-                int start = a + (int) (RATE * (0.12 * k));
-                addSweep(b, start, (int) (RATE * 0.16), 2600, 3400, 0.16, 0.1);
-                addSweep(b, start + (int) (RATE * 0.07), (int) (RATE * 0.14), 3200, 2800, 0.12, 0.09);
+        // FM 鸟鸣：carrier 滑频 + 38Hz 调制
+        double[] groups = {1.5, 5.2, 8.6};
+        for (double gAt : groups) {
+            int chips = 2 + (int) (DspSeed.next() * 2);
+            for (int c = 0; c < chips; c++) {
+                fmChirp(b, (int) ((gAt + c * 0.19) * RATE));
             }
         }
-        // 首尾 50ms 淡入淡出防循环爆音
-        int fade = (int) (RATE * 0.05);
-        for (int i = 0; i < fade; i++) {
-            b[i] *= (double) i / fade;
-            b[len - 1 - i] *= (double) i / fade;
+        // 风铃：高频 KS 泛音簇
+        double[] chime = {2093.0, 2349.3, 2637.0, 3136.0};
+        for (int i = 0; i < chime.length; i++) {
+            Dsp.mix(b, Dsp.ksPluck(chime[i], 2.0, 0.9985, 0.7),
+                    (int) (6.0 * RATE + i * 0.04 * RATE), 0.06);
         }
-        return normalize(b, 0.5);
+        Dsp.loopCrossfade(b, 0.10);
+        return Dsp.normalize(b, 0.5);
     }
 
-    // ---------- WAV 写出 ----------
+    /** 单声鸟鸣 chip：carrier 2400~3100Hz 滑 ±20%，调制 38Hz index 3~5。 */
+    private static void fmChirp(double[] dst, int start) {
+        int n = (int) (0.18 * RATE);
+        if (start + n >= dst.length) {
+            return;
+        }
+        double fc = 2400 + DspSeed.next() * 700;
+        double glide = (DspSeed.next() < 0.5 ? -1 : 1) * fc * 0.20;
+        double index = 3 + DspSeed.next() * 2;
+        double phase = 0, mPhase = 0;
+        for (int i = 0; i < n; i++) {
+            double env = Math.sin(Math.PI * i / n); // 纺锤包络
+            double f = fc + glide * i / n;
+            double mod = index * Math.sin(mPhase);
+            dst[start + i] += 0.14 * env * Math.sin(phase + mod);
+            phase += 2 * Math.PI * f / RATE;
+            mPhase += 2 * Math.PI * 38 / RATE;
+        }
+    }
 
-    private static byte[] wavBytes(double[] samples) throws IOException {
-        int dataSize = samples.length * 2;
+    /** 局部确定性随机（每次合成调用推进，缓存后不再变化）。 */
+    private static final class DspSeed {
+        private static final java.util.Random R = new java.util.Random(20260821);
+
+        static double next() {
+            return R.nextDouble();
+        }
+    }
+
+    // ---------- WAV 写出（立体声 16bit PCM） ----------
+
+    private static byte[] wavBytesStereo(double[] l, double[] r) throws IOException {
+        int frames = Math.min(l.length, r.length);
+        int dataSize = frames * 4;
         ByteArrayOutputStream out = new ByteArrayOutputStream(dataSize + 44);
         writeAscii(out, "RIFF");
         writeIntLE(out, 36 + dataSize);
         writeAscii(out, "WAVE");
         writeAscii(out, "fmt ");
         writeIntLE(out, 16);
-        writeShortLE(out, 1); // PCM
-        writeShortLE(out, 1); // mono
+        writeShortLE(out, 1);      // PCM
+        writeShortLE(out, 2);      // stereo
         writeIntLE(out, RATE);
-        writeIntLE(out, RATE * 2); // byte rate
-        writeShortLE(out, 2); // block align
-        writeShortLE(out, 16); // bits
+        writeIntLE(out, RATE * 4); // byte rate
+        writeShortLE(out, 4);      // block align
+        writeShortLE(out, 16);     // bits
         writeAscii(out, "data");
         writeIntLE(out, dataSize);
-        for (double s : samples) {
-            int v = (int) Math.max(-32768, Math.min(32767, s * 32767));
-            out.write(v & 0xFF);
-            out.write((v >> 8) & 0xFF);
+        for (int i = 0; i < frames; i++) {
+            int lv = (int) Math.max(-32768, Math.min(32767, l[i] * 32767));
+            int rv = (int) Math.max(-32768, Math.min(32767, r[i] * 32767));
+            out.write(lv & 0xFF);
+            out.write((lv >> 8) & 0xFF);
+            out.write(rv & 0xFF);
+            out.write((rv >> 8) & 0xFF);
         }
         return out.toByteArray();
     }
